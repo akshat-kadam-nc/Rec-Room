@@ -1,6 +1,6 @@
 import { ObjectId, type Document } from "mongodb";
 import { headers } from "next/headers";
-import { auth } from "./auth";
+import { getAuth } from "./auth";
 import { getDatabase } from "./mongodb";
 import { libraryVolumes, roomCollections } from "@/app/bookshelf/room-content";
 
@@ -81,7 +81,7 @@ export async function getTenantRoom(slug: string) {
 }
 
 export async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
+  return (await getAuth()).api.getSession({ headers: await headers() });
 }
 
 export async function requireTenantMembership(slug: string) {
