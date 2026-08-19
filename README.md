@@ -16,7 +16,7 @@ pnpm dev
 ## Current routes
 
 - `/bookshelf` — reference room implementation
-- `/admin` — local-only content-studio preview
+- `/admin` — public content-studio preview; authentication is not implemented yet
 - `/bookshelf-archive` — preserved earlier bookshelf concept
 
 ## Environment
