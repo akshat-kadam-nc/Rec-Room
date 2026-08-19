@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
-  redirect("/bookshelf");
+  return <main className="landing-page">
+    <header className="landing-nav"><Link className="issue-mark" href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><strong>REC ROOM</strong><nav><Link href="/akshat">Visit a room</Link><Link href="/login">Log in</Link><Link className="landing-cta-small" href="/register">Create your room</Link></nav></header>
+    <section className="landing-hero"><div><span>YOUR WORLD, ARRANGED</span><h1>A room for<br />everything<br /><em>you keep.</em></h1><p>Build a personal corner of the internet where the things you read, watch, play, and collect live together.</p><div><Link className="landing-button" href="/register">CREATE YOUR REC ROOM</Link><Link href="/akshat">EXPLORE AKSHAT’S ROOM ↗</Link></div></div><div className="landing-room-card"><img src="/rec-room-diorama-desktop.webp" alt="A digital recreation room with a library, television, games console, and coffee-table book" /><span>ROOM 001 / AKSHAT</span></div></section>
+    <section className="landing-objects"><header><span>THE OBJECT SYSTEM</span><h2>Your interests become part of the room.</h2></header><div><article><b>01</b><h3>Library</h3><p>Books, manga, writing, recommendations, and ideas arranged on your shelves.</p></article><article><b>02</b><h3>Screen</h3><p>Films, television, anime, and the watchlist you actually want to share.</p></article><article><b>03</b><h3>Console</h3><p>Games you have played, remembered, and saved for later.</p></article><article><b>04</b><h3>Table</h3><p>Internet writing, collected links, and marginalia kept in a commonplace book.</p></article></div></section>
+    <section className="landing-how"><span>HOW IT WORKS</span><div><h2>Choose an address.</h2><p>Register a unique URL such as <strong>domain.app/your-name</strong>.</p></div><div><h2>Arrange your room.</h2><p>Use your private studio to curate what each room object contains.</p></div><div><h2>Share the door.</h2><p>Anyone can visit your public room. Only you hold the studio key.</p></div><Link className="landing-button" href="/register">START A ROOM</Link></section>
+  </main>;
 }

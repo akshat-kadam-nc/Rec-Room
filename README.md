@@ -13,16 +13,16 @@ pnpm install
 pnpm dev
 ```
 
-## Current routes
+## Product routes
 
-- `/bookshelf` — reference room implementation
-- `/admin` — public content-studio preview; authentication is not implemented yet
+- `/` — public product landing page
+- `/[slug]` — a tenant's public room, including `/akshat`
+- `/[slug]/admin` — the authenticated tenant studio
+- `/register` and `/login` — account entry points
 - `/bookshelf-archive` — preserved earlier bookshelf concept
 
 ## Environment
 
 Copy `.env.example` to `.env.local`. MongoDB, authentication, and feed credentials must remain server-only.
 
-## Status
-
-This is the extracted product seed. Tenant routing, MongoDB persistence, authentication, templates, and the jukebox are the next milestones.
+Authentication uses Better Auth with MongoDB-backed sessions and password hashing. Tenant content and room configuration are stored separately, and studio access is authorized server-side through tenant membership.

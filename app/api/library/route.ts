@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findPublicTenant } from "@/lib/tenants";
 
 const decodeXml = (value: string) => value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 const text = (item: string, tag: string) => decodeXml(item.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1]?.trim() ?? "");
@@ -24,10 +25,15 @@ async function loadFeed(feedUrl: string, source: FeedSource) {
     }).filter((post) => post.title && post.link);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const slug = new URL(request.url).searchParams.get("tenant")?.toLowerCase() ?? "";
+  const tenant = await findPublicTenant(slug);
+  if (!tenant) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  // Akshat's existing feeds are the first migrated integrations. Other tenants
+  // remain explicitly unconfigured until feed settings are added to the studio.
   const feeds = [
-    { source: "substack" as const, url: process.env.SUBSTACK_FEED_URL },
-    { source: "medium" as const, url: process.env.MEDIUM_FEED_URL },
+    { source: "substack" as const, url: slug === "akshat" ? process.env.SUBSTACK_FEED_URL : undefined },
+    { source: "medium" as const, url: slug === "akshat" ? process.env.MEDIUM_FEED_URL : undefined },
   ];
   const configuredFeeds = feeds.filter((feed): feed is { source: FeedSource; url: string } => Boolean(feed.url));
   if (!configuredFeeds.length) return NextResponse.json({ configured: false, posts: [], sources: { substack: "missing", medium: "missing" } });
