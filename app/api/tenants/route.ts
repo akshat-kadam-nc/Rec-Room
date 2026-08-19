@@ -4,6 +4,17 @@ import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 import { libraryVolumes, roomCollections } from "@/app/bookshelf/room-content";
 
+export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  const db = await getDatabase();
+  const membership = await db.collection("memberships").findOne({ userId: session.user.id });
+  if (!membership) return NextResponse.json({ error: "No room belongs to this account" }, { status: 404 });
+  const tenant = await db.collection<TenantDocument>("tenants").findOne({ _id: membership.tenantId });
+  if (!tenant) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  return NextResponse.json({ slug: tenant.slug });
+}
+
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
