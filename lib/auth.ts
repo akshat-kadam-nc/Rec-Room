@@ -5,9 +5,16 @@ import type { Db } from "mongodb";
 import { getDatabase } from "./mongodb";
 
 function createAuth(database: Db) {
+  const configuredOrigin = process.env.BETTER_AUTH_URL;
   return betterAuth({
     appName: "Rec Room",
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: configuredOrigin,
+    trustedOrigins: [
+      "https://rec-room.life",
+      "https://www.rec-room.life",
+      ...(configuredOrigin ? [configuredOrigin] : []),
+      ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000", "http://localhost:3001"] : []),
+    ],
     secret: process.env.BETTER_AUTH_SECRET,
     database: mongodbAdapter(database),
     emailAndPassword: {
