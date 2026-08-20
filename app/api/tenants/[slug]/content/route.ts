@@ -1,6 +1,7 @@
 import { getDatabase } from "@/lib/mongodb";
 import { requireTenantMembership } from "@/lib/tenants";
 import { MARKER_STYLES, ROOM_THEMES } from "@/lib/tenants";
+import { getRoomTemplate, ROOM_COMPONENTS, ROOM_TEMPLATE_IDS, type RoomComponent } from "@/lib/room-templates";
 import { NextResponse } from "next/server";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -45,17 +46,19 @@ export async function PATCH(request: Request, { params }: Context) {
   const { slug } = await params;
   const access = await requireTenantMembership(slug);
   if (!access) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  const body = await request.json().catch(() => null) as { ownerName?: string; title?: string; locationLabel?: string; theme?: string; markerStyle?: string } | null;
+  const body = await request.json().catch(() => null) as { ownerName?: string; title?: string; locationLabel?: string; theme?: string; markerStyle?: string; templateId?: string; enabledComponents?: string[] } | null;
   const ownerName = body?.ownerName?.trim().slice(0, 80);
   const title = body?.title?.trim().slice(0, 80);
   const locationLabel = body?.locationLabel?.trim().slice(0, 100);
-  if (!ownerName || !title || !locationLabel || !ROOM_THEMES.includes(body?.theme as (typeof ROOM_THEMES)[number]) || !MARKER_STYLES.includes(body?.markerStyle as (typeof MARKER_STYLES)[number])) {
+  const enabledComponents = [...new Set(body?.enabledComponents ?? [])];
+  if (!ownerName || !title || !locationLabel || !ROOM_THEMES.includes(body?.theme as (typeof ROOM_THEMES)[number]) || !MARKER_STYLES.includes(body?.markerStyle as (typeof MARKER_STYLES)[number]) || !ROOM_TEMPLATE_IDS.includes(body?.templateId ?? "") || enabledComponents.some((item) => !ROOM_COMPONENTS.includes(item as RoomComponent))) {
     return NextResponse.json({ error: "Invalid room appearance" }, { status: 400 });
   }
+  const selectedTemplate = getRoomTemplate(body!.templateId);
   const db = await getDatabase();
   const result = await db.collection("roomConfigurations").updateOne(
     { tenantId: access.tenant._id },
-    { $set: { ownerName, title, locationLabel, "background.theme": body!.theme, "objectVariation.markers": body!.markerStyle, updatedAt: new Date() } },
+    { $set: { ownerName, title, locationLabel, "background.theme": body!.theme, "background.templateId": selectedTemplate.id, "background.desktop": selectedTemplate.desktop, "background.mobile": selectedTemplate.mobile, "objectVariation.markers": body!.markerStyle, "objectVariation.enabledComponents": enabledComponents, updatedAt: new Date() } },
   );
   if (!result.matchedCount) return NextResponse.json({ error: "Room configuration was not found" }, { status: 404 });
   return NextResponse.json({ ok: true });

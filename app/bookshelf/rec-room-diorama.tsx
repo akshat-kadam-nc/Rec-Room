@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { getRoomTemplate, type HotspotRect, type RoomComponent } from "@/lib/room-templates";
 
 export type RoomHotspot = "library" | "watch" | "play" | "read";
 
 type Props = {
   active: RoomHotspot | null;
   activeChapter: number;
+  enabledComponents: RoomComponent[];
   onHotspot: (hotspot: RoomHotspot, chapter?: number) => void;
   onReady: () => void;
+  templateId: string;
 };
 
-const hotspots: Array<{ chapter?: number; id: RoomHotspot; key: string; label: string; hint: string }> = [
+const hotspotDefinitions: Array<{ chapter?: number; id: RoomHotspot; key: string; label: string; hint: string }> = [
   { id: "library", key: "writing", chapter: 0, label: "Writing", hint: "Open the Substack Writing volume" },
   { id: "library", key: "recommendations", chapter: 1, label: "Recs", hint: "Open the Recommendations volume" },
   { id: "library", key: "books", chapter: 2, label: "Books", hint: "Open the Books and Manga volume" },
@@ -21,10 +24,21 @@ const hotspots: Array<{ chapter?: number; id: RoomHotspot; key: string; label: s
   { id: "read", key: "read", label: "Read", hint: "Open the commonplace book" },
 ];
 
-export function RecRoomDiorama({ active, activeChapter, onHotspot, onReady }: Props) {
+type HotspotStyle = CSSProperties & Record<`--${"desktop" | "mobile"}-${"left" | "top" | "width" | "height"}`, string>;
+const value = (number: number) => `${number}%`;
+function hotspotStyle(desktop: HotspotRect, mobile: HotspotRect): HotspotStyle {
+  return { "--desktop-left": value(desktop.left), "--desktop-top": value(desktop.top), "--desktop-width": value(desktop.width), "--desktop-height": value(desktop.height), "--mobile-left": value(mobile.left), "--mobile-top": value(mobile.top), "--mobile-width": value(mobile.width), "--mobile-height": value(mobile.height) };
+}
+function libraryChapterRect(rectangle: HotspotRect, index: number, axis: "x" | "y") {
+  return axis === "x" ? { ...rectangle, left: rectangle.left + rectangle.width * index / 4, width: rectangle.width / 4 } : { ...rectangle, top: rectangle.top + rectangle.height * index / 4, height: rectangle.height / 4 };
+}
+
+export function RecRoomDiorama({ active, activeChapter, enabledComponents, onHotspot, onReady, templateId }: Props) {
   const room = useRef<HTMLDivElement>(null);
   const plane = useRef<HTMLDivElement>(null);
   const artwork = useRef<HTMLImageElement>(null);
+  const selectedTemplate = getRoomTemplate(templateId);
+  const hotspots = hotspotDefinitions.filter((item) => enabledComponents.includes(item.id));
 
   useEffect(() => {
     const image = artwork.current;
@@ -83,16 +97,19 @@ export function RecRoomDiorama({ active, activeChapter, onHotspot, onReady }: Pr
     <div className="room-diorama" ref={room}>
       <div className="room-plane" ref={plane}>
         <picture className="room-art">
-          <source media="(max-width: 760px)" srcSet="/rec-room-diorama-mobile.webp" />
-          <img ref={artwork} src="/rec-room-diorama-desktop.webp" alt="A warm walnut recreation room overlooking rainy Mumbai" />
+          <source media="(max-width: 760px)" srcSet={selectedTemplate.mobile} />
+          <img ref={artwork} src={selectedTemplate.desktop} alt={`${selectedTemplate.name} recreation room`} />
         </picture>
-        <div className="room-window-loop" aria-hidden="true" />
-        <div className="room-steam" aria-hidden="true"><i /><i /><i /></div>
+        {selectedTemplate.id === "monsoon-study" && <><div className="room-window-loop" aria-hidden="true" /><div className="room-steam" aria-hidden="true"><i /><i /><i /></div></>}
         <div className="room-hotspots" aria-label="Objects in the recreation room">
-          {hotspots.map(({ chapter, id, key, label, hint }, index) => (
+          {hotspots.map(({ chapter, id, key, label, hint }, index) => {
+            const desktopRect = id === "library" ? libraryChapterRect(selectedTemplate.layout.desktop.library, chapter ?? 0, selectedTemplate.libraryAxis) : selectedTemplate.layout.desktop[id];
+            const mobileRect = id === "library" ? libraryChapterRect(selectedTemplate.layout.mobile.library, chapter ?? 0, selectedTemplate.libraryAxis) : selectedTemplate.layout.mobile[id];
+            return (
             <button
-              className={`room-hotspot room-hotspot-${key}`}
+              className={`room-hotspot room-hotspot-template room-hotspot-${key}`}
               key={key}
+              style={hotspotStyle(desktopRect, mobileRect)}
               type="button"
               aria-label={hint}
               aria-pressed={active === id && (id !== "library" || activeChapter === chapter)}
@@ -101,7 +118,7 @@ export function RecRoomDiorama({ active, activeChapter, onHotspot, onReady }: Pr
               <span className="room-hotspot-number">{id === "library" ? `B${index + 1}` : `0${index - 2}`}</span>
               <span className="room-hotspot-label">{label}</span>
             </button>
-          ))}
+          )})}
         </div>
       </div>
     </div>

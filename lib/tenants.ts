@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getAuth } from "./auth";
 import { getDatabase } from "./mongodb";
 import { libraryVolumes, roomCollections } from "@/app/bookshelf/room-content";
+import type { RoomComponent } from "./room-templates";
 
 export const RESERVED_SLUGS = new Set(["admin", "api", "archive", "bookshelf-archive", "favicon", "login", "logout", "register", "signup", "studio", "www"]);
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
@@ -22,8 +23,8 @@ export type RoomConfiguration = {
   ownerName: string;
   title: string;
   locationLabel: string;
-  background: { desktop: string; mobile: string; theme: string };
-  objectVariation: Record<string, string>;
+  background: { desktop: string; mobile: string; templateId?: string; theme: string };
+  objectVariation: { enabledComponents?: RoomComponent[]; markers?: string; [key: string]: string | string[] | undefined };
   updatedAt: Date;
 };
 
@@ -55,7 +56,7 @@ export async function seedAkshatTenant() {
   await Promise.all([
     db.collection<RoomConfiguration>("roomConfigurations").updateOne(
       { tenantId: result._id },
-      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", locationLabel: "Mumbai / Monsoon Study", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table" }, updatedAt: now } },
+      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", locationLabel: "Mumbai / Monsoon Study", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, updatedAt: now } },
       { upsert: true },
     ),
     db.collection("curatedContent").updateOne(

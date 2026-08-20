@@ -4,21 +4,24 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RecRoomDiorama, type RoomHotspot } from "./rec-room-diorama";
 import { libraryVolumes as defaultLibraryVolumes, roomCollections as defaultRoomCollections, type LibraryVolume, type RoomChapter, type RoomCollection } from "./room-content";
+import { getRoomTemplate, type RoomComponent } from "@/lib/room-templates";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
 type RecRoomProps = {
+  enabledComponents?: RoomComponent[];
   locationLabel?: string;
   markerStyle?: string;
   ownerName?: string;
   roomTitle?: string;
   slug?: string;
   theme?: string;
+  templateId?: string;
   volumes?: readonly LibraryVolume[];
   collections?: typeof defaultRoomCollections;
 };
 
-export function RecRoom({ locationLabel = "Mumbai / Monsoon Study", markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
+export function RecRoom({ enabledComponents = ["library", "watch", "play", "read", "jukebox"], locationLabel = "Mumbai / Monsoon Study", markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -26,6 +29,7 @@ export function RecRoom({ locationLabel = "Mumbai / Monsoon Study", markerStyle 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [feedStates, setFeedStates] = useState<Record<"medium" | "substack", "loading" | "ready" | "missing" | "unavailable">>({ medium: "loading", substack: "loading" });
   const [loaded, setLoaded] = useState(false);
+  const selectedTemplate = getRoomTemplate(templateId);
   const closeButton = useRef<HTMLButtonElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
   const markLoaded = useCallback(() => setLoaded(true), []);
@@ -37,11 +41,14 @@ export function RecRoom({ locationLabel = "Mumbai / Monsoon Study", markerStyle 
     return () => window.removeEventListener("keydown", keydown);
   }, []);
   useEffect(() => {
+    if (!enabledComponents.includes("library") && !enabledComponents.includes("read")) {
+      return;
+    }
     fetch(`/api/library?tenant=${encodeURIComponent(slug)}`).then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
       setFeedPosts(data.posts ?? []);
       setFeedStates({ medium: data.sources?.medium ?? "missing", substack: data.sources?.substack ?? (data.unavailable ? "unavailable" : data.configured ? "ready" : "missing") });
     }).catch(() => setFeedStates({ medium: "unavailable", substack: "unavailable" }));
-  }, [slug]);
+  }, [enabledComponents, slug]);
 
   const selectedVolume = volumes[libraryVolume] ?? volumes[0];
   const collection: RoomCollection | null = active === "library" ? { eyebrow: selectedVolume.eyebrow, title: selectedVolume.title, chapters: selectedVolume.chapters } : active ? collections[active] : null;
@@ -58,11 +65,11 @@ export function RecRoom({ locationLabel = "Mumbai / Monsoon Study", markerStyle 
       <nav><Link href={`/${slug}/admin`}>Studio</Link><Link href="/">Rec Room</Link></nav>
     </header>
     <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
-      <RecRoomDiorama active={active} activeChapter={libraryVolume} onHotspot={openHotspot} onReady={markLoaded} />
+      <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
-      <div className="room-weather"><span>{locationLabel.toUpperCase()}</span><strong>{theme === "amber-evening" ? "GOLDEN HOUR" : theme === "midnight-blue" ? "AFTER MIDNIGHT" : "RAIN AT THE WINDOW"}</strong></div>
+      <div className="room-weather"><span>{locationLabel.toUpperCase()}</span><strong>{selectedTemplate.name.toUpperCase()}</strong></div>
       <div className="room-legend" aria-label="Interactive objects">
-        {(["library", "watch", "play", "read"] as const).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot].title}</button>)}
+        {(["library", "watch", "play", "read"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot].title}</button>)}
       </div>
       <p className="room-instruction">SELECT A MARKED OBJECT · ESC TO RETURN</p>
       {active && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
