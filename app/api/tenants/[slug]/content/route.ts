@@ -37,7 +37,16 @@ export async function PUT(request: Request, { params }: Context) {
     ? `libraryVolumes.${Number(body.sectionId.split(":")[1])}.chapters.${entryIndex}`
     : `roomCollections.${body.sectionId}.chapters.${entryIndex}`;
   const db = await getDatabase();
-  const result = await db.collection("curatedContent").updateOne({ tenantId: access.tenant._id }, { $set: { [path]: safeEntry, updatedAt: new Date() } });
+  const collection = db.collection("curatedContent");
+  const current = await collection.findOne({ tenantId: access.tenant._id });
+  if (!current) return NextResponse.json({ error: "Room content was not found" }, { status: 404 });
+  if (!current.draftContent) {
+    await collection.updateOne(
+      { tenantId: access.tenant._id },
+      { $set: { draftContent: { libraryVolumes: current.libraryVolumes, roomCollections: current.roomCollections } } },
+    );
+  }
+  const result = await collection.updateOne({ tenantId: access.tenant._id }, { $set: { [`draftContent.${path}`]: safeEntry, draftUpdatedAt: new Date() } });
   if (!result.matchedCount) return NextResponse.json({ error: "Room content was not found" }, { status: 404 });
   return NextResponse.json({ ok: true, entry: safeEntry });
 }
@@ -46,20 +55,54 @@ export async function PATCH(request: Request, { params }: Context) {
   const { slug } = await params;
   const access = await requireTenantMembership(slug);
   if (!access) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  const body = await request.json().catch(() => null) as { ownerName?: string; title?: string; locationLabel?: string; theme?: string; markerStyle?: string; templateId?: string; enabledComponents?: string[] } | null;
+  const body = await request.json().catch(() => null) as { ownerName?: string; title?: string; city?: string; timeZone?: string; theme?: string; markerStyle?: string; templateId?: string; enabledComponents?: string[] } | null;
   const ownerName = body?.ownerName?.trim().slice(0, 80);
   const title = body?.title?.trim().slice(0, 80);
-  const locationLabel = body?.locationLabel?.trim().slice(0, 100);
+  const city = body?.city?.trim().slice(0, 80);
+  const timeZone = body?.timeZone?.trim().slice(0, 80);
   const enabledComponents = [...new Set(body?.enabledComponents ?? [])];
-  if (!ownerName || !title || !locationLabel || !ROOM_THEMES.includes(body?.theme as (typeof ROOM_THEMES)[number]) || !MARKER_STYLES.includes(body?.markerStyle as (typeof MARKER_STYLES)[number]) || !ROOM_TEMPLATE_IDS.includes(body?.templateId ?? "") || enabledComponents.some((item) => !ROOM_COMPONENTS.includes(item as RoomComponent))) {
+  let validTimeZone = true;
+  try { new Intl.DateTimeFormat("en", { timeZone }).format(); } catch { validTimeZone = false; }
+  if (!ownerName || !title || !city || !timeZone || !validTimeZone || !ROOM_THEMES.includes(body?.theme as (typeof ROOM_THEMES)[number]) || !MARKER_STYLES.includes(body?.markerStyle as (typeof MARKER_STYLES)[number]) || !ROOM_TEMPLATE_IDS.includes(body?.templateId ?? "") || enabledComponents.some((item) => !ROOM_COMPONENTS.includes(item as RoomComponent))) {
     return NextResponse.json({ error: "Invalid room appearance" }, { status: 400 });
   }
   const selectedTemplate = getRoomTemplate(body!.templateId);
   const db = await getDatabase();
   const result = await db.collection("roomConfigurations").updateOne(
     { tenantId: access.tenant._id },
-    { $set: { ownerName, title, locationLabel, "background.theme": body!.theme, "background.templateId": selectedTemplate.id, "background.desktop": selectedTemplate.desktop, "background.mobile": selectedTemplate.mobile, "objectVariation.markers": body!.markerStyle, "objectVariation.enabledComponents": enabledComponents, updatedAt: new Date() } },
+    { $set: { draft: { ownerName, title, city, timeZone, locationLabel: city, background: { theme: body!.theme, templateId: selectedTemplate.id, desktop: selectedTemplate.desktop, mobile: selectedTemplate.mobile }, objectVariation: { markers: body!.markerStyle, enabledComponents } }, draftUpdatedAt: new Date() } },
   );
   if (!result.matchedCount) return NextResponse.json({ error: "Room configuration was not found" }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, state: "draft" });
+}
+
+export async function POST(request: Request, { params }: Context) {
+  const { slug } = await params;
+  const access = await requireTenantMembership(slug);
+  if (!access) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  const body = await request.json().catch(() => null) as { scope?: "appearance" | "content" } | null;
+  const db = await getDatabase();
+  const now = new Date();
+  if (body?.scope === "appearance") {
+    const collection = db.collection("roomConfigurations");
+    const configuration = await collection.findOne({ tenantId: access.tenant._id });
+    if (!configuration?.draft) return NextResponse.json({ error: "Save your changes before publishing" }, { status: 409 });
+    const draft = configuration.draft;
+    await collection.updateOne(
+      { tenantId: access.tenant._id },
+      { $set: { ...draft, publishedAt: now, updatedAt: now }, $unset: { draft: "", draftUpdatedAt: "" } },
+    );
+    return NextResponse.json({ ok: true, state: "published" });
+  }
+  if (body?.scope === "content") {
+    const collection = db.collection("curatedContent");
+    const content = await collection.findOne({ tenantId: access.tenant._id });
+    if (!content?.draftContent) return NextResponse.json({ error: "Save your changes before publishing" }, { status: 409 });
+    await collection.updateOne(
+      { tenantId: access.tenant._id },
+      { $set: { libraryVolumes: content.draftContent.libraryVolumes, roomCollections: content.draftContent.roomCollections, publishedAt: now, updatedAt: now }, $unset: { draftContent: "", draftUpdatedAt: "" } },
+    );
+    return NextResponse.json({ ok: true, state: "published" });
+  }
+  return NextResponse.json({ error: "Invalid publish scope" }, { status: 400 });
 }

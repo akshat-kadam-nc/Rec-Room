@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RecRoomDiorama, type RoomHotspot } from "./rec-room-diorama";
 import { libraryVolumes as defaultLibraryVolumes, roomCollections as defaultRoomCollections, type LibraryVolume, type RoomChapter, type RoomCollection } from "./room-content";
-import { getRoomTemplate, type RoomComponent } from "@/lib/room-templates";
+import type { RoomComponent } from "@/lib/room-templates";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
 type RecRoomProps = {
   enabledComponents?: RoomComponent[];
-  locationLabel?: string;
+  city?: string;
+  timeZone?: string;
   markerStyle?: string;
   ownerName?: string;
   roomTitle?: string;
@@ -21,7 +22,7 @@ type RecRoomProps = {
   collections?: typeof defaultRoomCollections;
 };
 
-export function RecRoom({ enabledComponents = ["library", "watch", "play", "read", "jukebox"], locationLabel = "Mumbai / Monsoon Study", markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
+export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -29,12 +30,18 @@ export function RecRoom({ enabledComponents = ["library", "watch", "play", "read
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [feedStates, setFeedStates] = useState<Record<"medium" | "substack", "loading" | "ready" | "missing" | "unavailable">>({ medium: "loading", substack: "loading" });
   const [loaded, setLoaded] = useState(false);
-  const selectedTemplate = getRoomTemplate(templateId);
+  const [clock, setClock] = useState("");
   const closeButton = useRef<HTMLButtonElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
   const markLoaded = useCallback(() => setLoaded(true), []);
 
   useEffect(() => { if (active) closeButton.current?.focus(); }, [active]);
+  useEffect(() => {
+    const updateClock = () => setClock(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone }).format(new Date()));
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, [timeZone]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => { if (event.key === "Escape") setActive(null); };
     window.addEventListener("keydown", keydown);
@@ -67,7 +74,7 @@ export function RecRoom({ enabledComponents = ["library", "watch", "play", "read
     <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
       <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
-      <div className="room-weather"><span>{locationLabel.toUpperCase()}</span><strong>{selectedTemplate.name.toUpperCase()}</strong></div>
+      <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
       <div className="room-legend" aria-label="Interactive objects">
         {(["library", "watch", "play", "read"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot].title}</button>)}
       </div>

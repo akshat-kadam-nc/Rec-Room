@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     }
     await Promise.all([
       db.collection("memberships").insertOne({ tenantId: tenant._id, userId: session.user.id, role: "owner", createdAt: now }),
-      db.collection("roomConfigurations").updateOne({ tenantId: tenant._id }, { $setOnInsert: { tenantId: tenant._id, ownerName: session.user.name, title: "The Rec Room", locationLabel: "My corner of the internet", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "screen", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, updatedAt: now } }, { upsert: true }),
+      db.collection("roomConfigurations").updateOne({ tenantId: tenant._id }, { $setOnInsert: { tenantId: tenant._id, ownerName: session.user.name, title: "The Rec Room", city: "Mumbai", timeZone: "Asia/Kolkata", locationLabel: "Mumbai", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "screen", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, publishedAt: now, updatedAt: now } }, { upsert: true }),
       db.collection("curatedContent").updateOne({ tenantId: tenant._id }, { $setOnInsert: { tenantId: tenant._id, libraryVolumes, roomCollections, updatedAt: now } }, { upsert: true }),
     ]);
     return NextResponse.json({ slug }, { status: 201 });

@@ -18,13 +18,21 @@ export type TenantDocument = {
   updatedAt: Date;
 };
 
-export type RoomConfiguration = {
-  tenantId: ObjectId;
+export type RoomAppearance = {
   ownerName: string;
   title: string;
-  locationLabel: string;
+  city: string;
+  timeZone: string;
+  locationLabel?: string;
   background: { desktop: string; mobile: string; templateId?: string; theme: string };
   objectVariation: { enabledComponents?: RoomComponent[]; markers?: string; [key: string]: string | string[] | undefined };
+};
+
+export type RoomConfiguration = RoomAppearance & {
+  tenantId: ObjectId;
+  draft?: RoomAppearance;
+  draftUpdatedAt?: Date;
+  publishedAt?: Date;
   updatedAt: Date;
 };
 
@@ -56,7 +64,7 @@ export async function seedAkshatTenant() {
   await Promise.all([
     db.collection<RoomConfiguration>("roomConfigurations").updateOne(
       { tenantId: result._id },
-      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", locationLabel: "Mumbai / Monsoon Study", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, updatedAt: now } },
+      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", city: "Mumbai", timeZone: "Asia/Kolkata", locationLabel: "Mumbai", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, publishedAt: now, updatedAt: now } },
       { upsert: true },
     ),
     db.collection("curatedContent").updateOne(
