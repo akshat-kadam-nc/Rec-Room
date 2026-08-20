@@ -18,5 +18,6 @@ export default async function TenantAdminPage({ params }: Context) {
     db.collection("curatedContent").findOne({ tenantId: access.tenant._id }),
   ]);
   const safeContent = content ? JSON.parse(JSON.stringify(content)) : undefined;
-  return <><AdminStudio slug={slug} ownerName={configuration?.ownerName || access.session.user.name} initialContent={safeContent} /><div className="studio-logout"><LogoutButton /></div></>;
+  const safeConfiguration = configuration ? JSON.parse(JSON.stringify(configuration)) : undefined;
+  return <><AdminStudio slug={slug} ownerName={configuration?.ownerName || access.session.user.name} initialContent={safeContent} initialConfiguration={safeConfiguration} /><div className="studio-logout"><LogoutButton /></div></>;
 }

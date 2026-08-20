@@ -1,5 +1,6 @@
 import { getDatabase } from "@/lib/mongodb";
 import { requireTenantMembership } from "@/lib/tenants";
+import { MARKER_STYLES, ROOM_THEMES } from "@/lib/tenants";
 import { NextResponse } from "next/server";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -38,4 +39,24 @@ export async function PUT(request: Request, { params }: Context) {
   const result = await db.collection("curatedContent").updateOne({ tenantId: access.tenant._id }, { $set: { [path]: safeEntry, updatedAt: new Date() } });
   if (!result.matchedCount) return NextResponse.json({ error: "Room content was not found" }, { status: 404 });
   return NextResponse.json({ ok: true, entry: safeEntry });
+}
+
+export async function PATCH(request: Request, { params }: Context) {
+  const { slug } = await params;
+  const access = await requireTenantMembership(slug);
+  if (!access) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  const body = await request.json().catch(() => null) as { ownerName?: string; title?: string; locationLabel?: string; theme?: string; markerStyle?: string } | null;
+  const ownerName = body?.ownerName?.trim().slice(0, 80);
+  const title = body?.title?.trim().slice(0, 80);
+  const locationLabel = body?.locationLabel?.trim().slice(0, 100);
+  if (!ownerName || !title || !locationLabel || !ROOM_THEMES.includes(body?.theme as (typeof ROOM_THEMES)[number]) || !MARKER_STYLES.includes(body?.markerStyle as (typeof MARKER_STYLES)[number])) {
+    return NextResponse.json({ error: "Invalid room appearance" }, { status: 400 });
+  }
+  const db = await getDatabase();
+  const result = await db.collection("roomConfigurations").updateOne(
+    { tenantId: access.tenant._id },
+    { $set: { ownerName, title, locationLabel, "background.theme": body!.theme, "objectVariation.markers": body!.markerStyle, updatedAt: new Date() } },
+  );
+  if (!result.matchedCount) return NextResponse.json({ error: "Room configuration was not found" }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }

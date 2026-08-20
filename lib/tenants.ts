@@ -27,6 +27,11 @@ export type RoomConfiguration = {
   updatedAt: Date;
 };
 
+export const ROOM_THEMES = ["monsoon-walnut", "midnight-blue", "amber-evening"] as const;
+export const MARKER_STYLES = ["ember", "brass", "quiet"] as const;
+export type RoomTheme = (typeof ROOM_THEMES)[number];
+export type MarkerStyle = (typeof MARKER_STYLES)[number];
+
 export async function ensureTenantIndexes() {
   const db = await getDatabase();
   await Promise.all([

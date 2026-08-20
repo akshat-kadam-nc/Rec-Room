@@ -8,14 +8,17 @@ import { libraryVolumes as defaultLibraryVolumes, roomCollections as defaultRoom
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
 type RecRoomProps = {
+  locationLabel?: string;
+  markerStyle?: string;
   ownerName?: string;
   roomTitle?: string;
   slug?: string;
+  theme?: string;
   volumes?: readonly LibraryVolume[];
   collections?: typeof defaultRoomCollections;
 };
 
-export function RecRoom({ ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
+export function RecRoom({ locationLabel = "Mumbai / Monsoon Study", markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -54,10 +57,10 @@ export function RecRoom({ ownerName = "Akshat Kadam", roomTitle = "The Rec Room"
       <div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div>
       <nav><Link href={`/${slug}/admin`}>Studio</Link><Link href="/">Rec Room</Link></nav>
     </header>
-    <section className={`rec-room-stage ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
+    <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
       <RecRoomDiorama active={active} activeChapter={libraryVolume} onHotspot={openHotspot} onReady={markLoaded} />
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
-      <div className="room-weather"><span>MUMBAI / MONSOON STUDY</span><strong>RAIN AT THE WINDOW</strong></div>
+      <div className="room-weather"><span>{locationLabel.toUpperCase()}</span><strong>{theme === "amber-evening" ? "GOLDEN HOUR" : theme === "midnight-blue" ? "AFTER MIDNIGHT" : "RAIN AT THE WINDOW"}</strong></div>
       <div className="room-legend" aria-label="Interactive objects">
         {(["library", "watch", "play", "read"] as const).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot].title}</button>)}
       </div>
