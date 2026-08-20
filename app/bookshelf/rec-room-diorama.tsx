@@ -24,7 +24,7 @@ function activateWithKeyboard(event: KeyboardEvent<SVGGElement>, activate: () =>
   activate();
 }
 
-function Contour({ active, aspectHeight, contour, hint, onActivate }: { active: boolean; aspectHeight: number; contour: HotspotContour; hint: string; onActivate: () => void }) {
+function Contour({ active, aspectHeight, contour, hint, label, number, onActivate }: { active: boolean; aspectHeight: number; contour: HotspotContour; hint: string; label: string; number: string; onActivate: () => void }) {
   const yScale = aspectHeight / 100;
   return (
     <g className="room-contour" role="button" tabIndex={0} aria-label={hint} aria-pressed={active} onClick={onActivate} onKeyDown={(event) => activateWithKeyboard(event, onActivate)}>
@@ -32,6 +32,8 @@ function Contour({ active, aspectHeight, contour, hint, onActivate }: { active: 
       <path className="room-contour-line" d={contour.path} transform={`scale(1 ${yScale})`} />
       <g className="room-contour-marker" transform={`translate(${contour.labelX} ${contour.labelY * yScale})`} aria-hidden="true">
         <circle r="1.45" />
+        <text className="room-contour-number" textAnchor="middle" dominantBaseline="central">{number}</text>
+        <text className="room-contour-label" x="2.15" dominantBaseline="central">{label}</text>
       </g>
     </g>
   );
@@ -82,10 +84,10 @@ export function RecRoomDiorama({ active, activeChapter, enabledComponents, onHot
 
   const contours = (mode: "desktop" | "mobile", aspectHeight: number) => (
     <svg className={`room-contours room-contours-${mode}`} viewBox={`0 0 100 ${aspectHeight}`} preserveAspectRatio="none" aria-label="Objects in the recreation room">
-      {hotspots.map(({ chapter, id, key, hint }) => {
+      {hotspots.map(({ chapter, id, key, label, hint }, index) => {
         const layout = selectedTemplate.contours[mode];
         const contour = id === "library" ? layout.library[chapter ?? 0] : layout[id];
-        return <Contour active={active === id && (id !== "library" || activeChapter === chapter)} aspectHeight={aspectHeight} contour={contour} hint={hint} key={key} onActivate={() => onHotspot(id, chapter)} />;
+        return <Contour active={active === id && (id !== "library" || activeChapter === chapter)} aspectHeight={aspectHeight} contour={contour} hint={hint} key={key} label={label} number={id === "library" ? `B${index + 1}` : `0${index - 2}`} onActivate={() => onHotspot(id, chapter)} />;
       })}
     </svg>
   );
