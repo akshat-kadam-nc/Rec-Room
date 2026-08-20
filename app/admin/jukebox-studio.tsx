@@ -6,17 +6,18 @@ import type { RoomPlaylist } from "@/lib/playlists";
 
 type PlaylistInput = Pick<RoomPlaylist, "id" | "title" | "url">;
 
-export function JukeboxStudio({ slug, initialDraft, initialPublished, initialHasDraft }: { slug: string; initialDraft: RoomPlaylist[]; initialPublished: RoomPlaylist[]; initialHasDraft: boolean }) {
+export function JukeboxStudio({ slug, initialDraft, initialPublished, initialHasDraft, initialPlayerStyle }: { slug: string; initialDraft: RoomPlaylist[]; initialPublished: RoomPlaylist[]; initialHasDraft: boolean; initialPlayerStyle: "rec-room" | "saloon" }) {
   const [playlists, setPlaylists] = useState<PlaylistInput[]>(initialHasDraft ? initialDraft : initialPublished);
   const [hasDraft, setHasDraft] = useState(initialHasDraft);
   const [notice, setNotice] = useState("");
+  const [playerStyle, setPlayerStyle] = useState(initialPlayerStyle);
   const flash = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 3000); };
   const update = (id: string, field: "title" | "url", value: string) => setPlaylists((current) => current.map((playlist) => playlist.id === id ? { ...playlist, [field]: value } : playlist));
   const add = () => setPlaylists((current) => [...current, { id: crypto.randomUUID(), title: "", url: "" }]);
   const remove = (id: string) => setPlaylists((current) => current.filter((playlist) => playlist.id !== id));
   const save = async () => {
     setNotice("SAVING PLAYLIST DRAFT…");
-    const response = await fetch(`/api/tenants/${slug}/playlists`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists }) });
+    const response = await fetch(`/api/tenants/${slug}/playlists`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists, playerStyle }) });
     const data = await response.json().catch(() => null) as { error?: string; playlists?: RoomPlaylist[] } | null;
     if (response.ok) { setHasDraft(true); if (data?.playlists) setPlaylists(data.playlists); }
     flash(response.ok ? "Playlist draft saved." : data?.error || "Unable to save playlists.");
@@ -33,6 +34,7 @@ export function JukeboxStudio({ slug, initialDraft, initialPublished, initialHas
     <section className="jukebox-studio-shell">
       <aside><span>JUKEBOX / 09</span><h1>Set the room&apos;s soundtrack.</h1><p>Add public Spotify or YouTube Music playlist URLs. Visitors choose what to play when they open the Jukebox.</p><div><strong>{initialPublished.length}</strong><small>PLAYLISTS LIVE</small></div><div><strong>{playlists.length}</strong><small>IN THIS {hasDraft ? "SAVED DRAFT" : "EDITOR"}</small></div><Link href={`/${slug}/admin`}>RETURN TO CONTROL ROOM</Link></aside>
       <div className="jukebox-studio-list"><header><div><span>PLAYLIST SOURCES</span><strong>{hasDraft ? "SAVED DRAFT / NOT LIVE" : "PUBLISHED STATE"}</strong></div><div><button type="button" onClick={add}>＋ ADD PLAYLIST</button><button type="button" onClick={save}>SAVE CHANGES</button><button type="button" disabled={!hasDraft} onClick={publish}>PUBLISH</button></div></header>
+        <fieldset className="player-style-picker"><legend>PLAYER APPEARANCE</legend><label className={playerStyle === "rec-room" ? "is-selected" : ""}><input type="radio" name="playerStyle" value="rec-room" checked={playerStyle === "rec-room"} onChange={() => setPlayerStyle("rec-room")} /><span><strong>REC ROOM</strong><small>Framed, editorial and integrated with the room.</small></span><i className="player-style-rec-room">NOW PLAYING</i></label><label className={playerStyle === "saloon" ? "is-selected" : ""}><input type="radio" name="playerStyle" value="saloon" checked={playerStyle === "saloon"} onChange={() => setPlayerStyle("saloon")} /><span><strong>SALOON</strong><small>Compact dark pill with circular artwork and transport controls.</small></span><i className="player-style-saloon">▶</i></label></fieldset>
         <ol>{playlists.map((playlist, index) => <li key={playlist.id}><i>{String(index + 1).padStart(2, "0")}</i><label><span>DISPLAY NAME</span><input value={playlist.title} maxLength={100} placeholder="Sunday morning records" onChange={(event) => update(playlist.id, "title", event.target.value)} /></label><label><span>PUBLIC PLAYLIST URL</span><input type="url" value={playlist.url} placeholder="https://music.youtube.com/playlist?list=…" onChange={(event) => update(playlist.id, "url", event.target.value)} /></label><button type="button" onClick={() => remove(playlist.id)}>REMOVE</button></li>)}</ol>
         {!playlists.length && <div className="jukebox-studio-empty"><strong>No playlists yet.</strong><p>Add a public YouTube Music or Spotify playlist to open the Jukebox.</p><button type="button" onClick={add}>＋ ADD THE FIRST PLAYLIST</button></div>}
       </div>

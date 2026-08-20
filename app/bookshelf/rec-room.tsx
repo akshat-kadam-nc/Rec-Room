@@ -22,9 +22,10 @@ type RecRoomProps = {
   volumes?: readonly LibraryVolume[];
   collections?: typeof defaultRoomCollections;
   playlists?: RoomPlaylist[];
+  playerStyle?: "rec-room" | "saloon";
 };
 
-export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [] }: RecRoomProps) {
+export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -35,9 +36,20 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   const [clock, setClock] = useState("");
   const [activePlaylist, setActivePlaylist] = useState<RoomPlaylist | null>(null);
   const [playerOpen, setPlayerOpen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const page = useRef<HTMLElement>(null);
+  const playerFrame = useRef<HTMLIFrameElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
   const markLoaded = useCallback(() => setLoaded(true), []);
+  const toggleFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await page.current?.requestFullscreen();
+  }, []);
+  const youtubeCommand = useCallback((command: "playVideo" | "pauseVideo" | "nextVideo" | "previousVideo") => {
+    playerFrame.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args: [] }), "https://www.youtube.com");
+  }, []);
 
   useEffect(() => { if (active) closeButton.current?.focus(); }, [active]);
   useEffect(() => {
@@ -47,10 +59,16 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
     return () => window.clearInterval(timer);
   }, [timeZone]);
   useEffect(() => {
-    const keydown = (event: KeyboardEvent) => { if (event.key === "Escape") setActive(null); };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActive(null);
+      const target = event.target as HTMLElement | null;
+      if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey && !event.altKey && !target?.matches("input, textarea, select, [contenteditable=true]")) { event.preventDefault(); void toggleFullscreen(); }
+    };
+    const fullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     window.addEventListener("keydown", keydown);
-    return () => window.removeEventListener("keydown", keydown);
-  }, []);
+    document.addEventListener("fullscreenchange", fullscreenChange);
+    return () => { window.removeEventListener("keydown", keydown); document.removeEventListener("fullscreenchange", fullscreenChange); };
+  }, [toggleFullscreen]);
   useEffect(() => {
     if (!enabledComponents.includes("library") && !enabledComponents.includes("read")) {
       return;
@@ -69,14 +87,11 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   const chapters = active === "library" && dynamicChapters.length ? dynamicChapters : active === "read" && dynamicChapters.length ? [baseChapters[0], ...dynamicChapters, baseChapters[2]] : baseChapters;
   const currentChapter = chapters[Math.min(chapter, Math.max(chapters.length - 1, 0))];
 
-  return <main className="rec-room-page">
-    <header className="rec-room-nav">
-      <Link className="issue-mark" href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link>
-      <div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div>
-      <nav><Link href={`/${slug}/admin`}>Studio</Link><Link href="/">Rec Room</Link></nav>
-    </header>
+  return <main className="rec-room-page" ref={page}>
     <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
       <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
+      <div className="room-identity"><Link href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div></div>
+      <nav className="room-actions" aria-label="Room controls"><Link href={`/${slug}/admin`}>STUDIO</Link><Link href="/">REC ROOM</Link><button type="button" onClick={() => void toggleFullscreen()} aria-keyshortcuts="F">{isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"} <kbd>F</kbd></button></nav>
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
       <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
       <div className="room-legend" aria-label="Interactive objects">
@@ -86,7 +101,7 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
       {active === "jukebox" && <article className="jukebox-browser" role="dialog" aria-modal="true" aria-label="Jukebox playlists">
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
         <header><span>JUKEBOX / @{slug}</span><h1>Choose the room&apos;s soundtrack.</h1><p>Public playlists selected by {ownerName}.</p></header>
-        <ol>{playlists.length ? playlists.map((playlist, index) => <li key={playlist.id}><button type="button" onClick={() => { setActivePlaylist(playlist); setPlayerOpen(true); setActive(null); }}><i>{String(index + 1).padStart(2, "0")}</i><span><strong>{playlist.title}</strong><small>{playlist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small></span><b>PLAY ↗</b></button></li>) : <li className="jukebox-empty">The owner has not published a playlist yet.</li>}</ol>
+        <ol>{playlists.length ? playlists.map((playlist, index) => <li key={playlist.id}><button type="button" onClick={() => { setActivePlaylist(playlist); setPlayerOpen(playerStyle === "rec-room"); setIsPlaying(true); setActive(null); }}><i>{String(index + 1).padStart(2, "0")}</i><span><strong>{playlist.title}</strong><small>{playlist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small></span><b>PLAY ↗</b></button></li>) : <li className="jukebox-empty">The owner has not published a playlist yet.</li>}</ol>
       </article>}
       {active && active !== "jukebox" && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
@@ -115,9 +130,9 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
           </div>
         </section></>}
       </article>}
-      {activePlaylist && <aside className={`room-player room-player-${activePlaylist.provider} ${playerOpen ? "is-open" : ""}`} aria-label="Room music player">
-        <div className="room-player-embed"><iframe src={activePlaylist.embedUrl} title={`${activePlaylist.title} player`} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="eager" /></div>
-        <div className="room-player-bar"><span className="room-player-pulse"><i /><i /><i /></span><div><small>NOW PLAYING / {activePlaylist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small><strong>{activePlaylist.title}</strong></div><Link href={activePlaylist.url} target="_blank" rel="noreferrer">SOURCE ↗</Link><button type="button" onClick={() => setPlayerOpen((value) => !value)}>{playerOpen ? "HIDE PLAYER" : "OPEN PLAYER"}</button><button type="button" onClick={() => setActivePlaylist(null)} aria-label="Stop and close player">×</button></div>
+      {activePlaylist && <aside className={`room-player room-player-style-${playerStyle} room-player-${activePlaylist.provider} ${playerOpen ? "is-open" : ""}`} aria-label="Room music player">
+        <div className="room-player-embed"><iframe ref={playerFrame} src={activePlaylist.provider === "youtube" ? `${activePlaylist.embedUrl}${activePlaylist.embedUrl.includes("?") ? "&" : "?"}enablejsapi=1` : activePlaylist.embedUrl} title={`${activePlaylist.title} player`} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="eager" /></div>
+        {playerStyle === "saloon" ? <div className="saloon-player-bar"><span className="saloon-cover">{activePlaylist.provider === "youtube" ? "YT" : "S"}</span><div className="saloon-track"><strong>{activePlaylist.title}</strong><small>{activePlaylist.provider === "youtube" ? "YouTube Music Playlist" : "Spotify Playlist"}</small><span><i /></span><em>ROOM PLAYLIST</em></div><div className="saloon-controls"><button type="button" aria-label="Previous" onClick={() => youtubeCommand("previousVideo")}>‹</button><button className="saloon-play" type="button" aria-label={isPlaying ? "Pause" : "Play"} onClick={() => { if (activePlaylist.provider === "youtube") youtubeCommand(isPlaying ? "pauseVideo" : "playVideo"); else setPlayerOpen(true); setIsPlaying((value) => !value); }}>{isPlaying ? "Ⅱ" : "▶"}</button><button type="button" aria-label="Next" onClick={() => youtubeCommand("nextVideo")}>›</button></div><Link href={activePlaylist.url} target="_blank" rel="noreferrer" aria-label="Open source playlist">↗</Link><button className="saloon-close" type="button" onClick={() => setActivePlaylist(null)} aria-label="Stop and close player">×</button></div> : <div className="room-player-bar"><span className="room-player-pulse"><i /><i /><i /></span><div><small>NOW PLAYING / {activePlaylist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small><strong>{activePlaylist.title}</strong></div><Link href={activePlaylist.url} target="_blank" rel="noreferrer">SOURCE ↗</Link><button type="button" onClick={() => setPlayerOpen((value) => !value)}>{playerOpen ? "HIDE PLAYER" : "OPEN PLAYER"}</button><button type="button" onClick={() => setActivePlaylist(null)} aria-label="Stop and close player">×</button></div>}
       </aside>}
     </section>
   </main>;

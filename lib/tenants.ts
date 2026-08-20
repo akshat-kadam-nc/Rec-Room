@@ -93,7 +93,7 @@ export async function getTenantRoom(slug: string) {
     db.collection("curatedContent").findOne({ tenantId: tenant._id }),
     db.collection("roomPlaylists").findOne({ tenantId: tenant._id }),
   ]);
-  return { tenant, configuration, content, playlists: playlistDocument?.playlists ?? [] };
+  return { tenant, configuration, content, playlists: playlistDocument?.playlists ?? [], playerStyle: playlistDocument?.playerStyle ?? "rec-room" };
 }
 
 export async function getSession() {

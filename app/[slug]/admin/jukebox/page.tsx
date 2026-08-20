@@ -13,5 +13,5 @@ export default async function JukeboxAdminPage({ params }: Context) {
   if (!access) redirect(`/login?next=/${slug}/admin/jukebox`);
   const db = await getDatabase();
   const document = await db.collection("roomPlaylists").findOne({ tenantId: access.tenant._id });
-  return <JukeboxStudio slug={slug} initialDraft={(document?.draft ?? []) as RoomPlaylist[]} initialPublished={(document?.playlists ?? []) as RoomPlaylist[]} initialHasDraft={Array.isArray(document?.draft)} />;
+  return <JukeboxStudio slug={slug} initialDraft={(document?.draft ?? []) as RoomPlaylist[]} initialPublished={(document?.playlists ?? []) as RoomPlaylist[]} initialHasDraft={Array.isArray(document?.draft)} initialPlayerStyle={(document?.draftPlayerStyle ?? document?.playerStyle ?? "rec-room") as "rec-room" | "saloon"} />;
 }
