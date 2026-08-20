@@ -48,6 +48,7 @@ export async function ensureTenantIndexes() {
     db.collection("memberships").createIndex({ tenantId: 1, userId: 1 }, { unique: true }),
     db.collection("roomConfigurations").createIndex({ tenantId: 1 }, { unique: true }),
     db.collection("curatedContent").createIndex({ tenantId: 1 }, { unique: true }),
+    db.collection("roomPlaylists").createIndex({ tenantId: 1 }, { unique: true }),
   ]);
 }
 
@@ -87,11 +88,12 @@ export async function getTenantRoom(slug: string) {
   const tenant = await findPublicTenant(slug);
   if (!tenant) return null;
   const db = await getDatabase();
-  const [configuration, content] = await Promise.all([
+  const [configuration, content, playlistDocument] = await Promise.all([
     db.collection<RoomConfiguration>("roomConfigurations").findOne({ tenantId: tenant._id }),
     db.collection("curatedContent").findOne({ tenantId: tenant._id }),
+    db.collection("roomPlaylists").findOne({ tenantId: tenant._id }),
   ]);
-  return { tenant, configuration, content };
+  return { tenant, configuration, content, playlists: playlistDocument?.playlists ?? [] };
 }
 
 export async function getSession() {

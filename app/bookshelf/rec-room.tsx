@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RecRoomDiorama, type RoomHotspot } from "./rec-room-diorama";
 import { libraryVolumes as defaultLibraryVolumes, roomCollections as defaultRoomCollections, type LibraryVolume, type RoomChapter, type RoomCollection } from "./room-content";
 import type { RoomComponent } from "@/lib/room-templates";
+import type { RoomPlaylist } from "@/lib/playlists";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
@@ -20,9 +21,10 @@ type RecRoomProps = {
   templateId?: string;
   volumes?: readonly LibraryVolume[];
   collections?: typeof defaultRoomCollections;
+  playlists?: RoomPlaylist[];
 };
 
-export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections }: RecRoomProps) {
+export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [] }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -31,6 +33,8 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   const [feedStates, setFeedStates] = useState<Record<"medium" | "substack", "loading" | "ready" | "missing" | "unavailable">>({ medium: "loading", substack: "loading" });
   const [loaded, setLoaded] = useState(false);
   const [clock, setClock] = useState("");
+  const [activePlaylist, setActivePlaylist] = useState<RoomPlaylist | null>(null);
+  const [playerOpen, setPlayerOpen] = useState(true);
   const closeButton = useRef<HTMLButtonElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
   const markLoaded = useCallback(() => setLoaded(true), []);
@@ -58,7 +62,7 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   }, [enabledComponents, slug]);
 
   const selectedVolume = volumes[libraryVolume] ?? volumes[0];
-  const collection: RoomCollection | null = active === "library" ? { eyebrow: selectedVolume.eyebrow, title: selectedVolume.title, chapters: selectedVolume.chapters } : active ? collections[active] : null;
+  const collection: RoomCollection | null = active === "library" ? { eyebrow: selectedVolume.eyebrow, title: selectedVolume.title, chapters: selectedVolume.chapters } : active ? collections[active] ?? defaultRoomCollections[active] : null;
   const baseChapters = collection?.chapters ?? [];
   const sourcePosts = active === "library" && libraryVolume === 0 ? feedPosts.filter((post) => post.source === "substack") : active === "read" ? feedPosts.filter((post) => post.source === "medium") : [];
   const dynamicChapters = sourcePosts.map((post, index): RoomChapter => ({ id: `post-${index}`, title: post.title, eyebrow: `${post.type.toUpperCase()} / ${post.source.toUpperCase()}`, summary: post.summary, longform: post.content ? [post.content] : undefined, meta: post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("en-IN", { dateStyle: "medium" }) : post.source.toUpperCase(), href: post.link }));
@@ -76,10 +80,15 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
       <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
       <div className="room-legend" aria-label="Interactive objects">
-        {(["library", "watch", "play", "read"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot].title}</button>)}
+        {(["library", "watch", "play", "read", "jukebox"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
       </div>
       <p className="room-instruction">SELECT A MARKED OBJECT · ESC TO RETURN</p>
-      {active && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
+      {active === "jukebox" && <article className="jukebox-browser" role="dialog" aria-modal="true" aria-label="Jukebox playlists">
+        <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
+        <header><span>JUKEBOX / @{slug}</span><h1>Choose the room&apos;s soundtrack.</h1><p>Public playlists selected by {ownerName}.</p></header>
+        <ol>{playlists.length ? playlists.map((playlist, index) => <li key={playlist.id}><button type="button" onClick={() => { setActivePlaylist(playlist); setPlayerOpen(true); setActive(null); }}><i>{String(index + 1).padStart(2, "0")}</i><span><strong>{playlist.title}</strong><small>{playlist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small></span><b>PLAY ↗</b></button></li>) : <li className="jukebox-empty">The owner has not published a playlist yet.</li>}</ol>
+      </article>}
+      {active && active !== "jukebox" && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
         {active === "watch" ? <div className="watch-browser">
           <header><strong>AK! SCREEN</strong><nav aria-label="Watch categories">{chapters.map((item, index) => <button key={item.id} type="button" className={chapter === index ? "is-current" : ""} onClick={() => setChapter(index)}>{item.title}</button>)}</nav><span>● AK</span></header>
@@ -106,6 +115,10 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
           </div>
         </section></>}
       </article>}
+      {activePlaylist && <aside className={`room-player room-player-${activePlaylist.provider} ${playerOpen ? "is-open" : ""}`} aria-label="Room music player">
+        <div className="room-player-embed"><iframe src={activePlaylist.embedUrl} title={`${activePlaylist.title} player`} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="eager" /></div>
+        <div className="room-player-bar"><span className="room-player-pulse"><i /><i /><i /></span><div><small>NOW PLAYING / {activePlaylist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small><strong>{activePlaylist.title}</strong></div><Link href={activePlaylist.url} target="_blank" rel="noreferrer">SOURCE ↗</Link><button type="button" onClick={() => setPlayerOpen((value) => !value)}>{playerOpen ? "HIDE PLAYER" : "OPEN PLAYER"}</button><button type="button" onClick={() => setActivePlaylist(null)} aria-label="Stop and close player">×</button></div>
+      </aside>}
     </section>
   </main>;
 }

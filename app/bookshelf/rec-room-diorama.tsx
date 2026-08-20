@@ -3,7 +3,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { getRoomTemplate, type HotspotRect, type RoomComponent } from "@/lib/room-templates";
 
-export type RoomHotspot = "library" | "watch" | "play" | "read";
+export type RoomHotspot = "library" | "watch" | "play" | "read" | "jukebox";
 
 type Props = {
   active: RoomHotspot | null;
@@ -22,6 +22,7 @@ const hotspotDefinitions: Array<{ chapter?: number; id: RoomHotspot; key: string
   { id: "watch", key: "watch", label: "Watch", hint: "Open films, television, and anime" },
   { id: "play", key: "play", label: "Play", hint: "Open games and wishlists" },
   { id: "read", key: "read", label: "Read", hint: "Open the commonplace book" },
+  { id: "jukebox", key: "jukebox", label: "Listen", hint: "Open the jukebox" },
 ];
 
 type HotspotStyle = CSSProperties & Record<`--${"desktop" | "mobile"}-${"left" | "top" | "width" | "height"}`, string>;

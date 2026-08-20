@@ -61,4 +61,5 @@ export const roomCollections: Record<RoomHotspot, RoomCollection> = {
     { id: "medium", title: "Medium", eyebrow: "LEAF 02 / MEDIUM", summary: "A future reading list for writing discovered on Medium. No automated feed is connected yet.", meta: "NOT CONNECTED" },
     { id: "marginalia", title: "Marginalia", eyebrow: "LEAF 03 / NOTES", summary: "Short annotations explaining why a piece mattered, what it changed, or where it leads next.", meta: "PERSONAL NOTES" },
   ]},
+  jukebox: { eyebrow: "NOW PLAYING", title: "Jukebox", chapters: [] },
 };
