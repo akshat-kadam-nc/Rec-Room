@@ -4,6 +4,7 @@ import { getAuth } from "./auth";
 import { getDatabase } from "./mongodb";
 import { libraryVolumes, roomCollections } from "@/app/bookshelf/room-content";
 import type { RoomComponent } from "./room-templates";
+import type { ContourDraft } from "./contour-authoring";
 
 export const RESERVED_SLUGS = new Set(["admin", "api", "archive", "bookshelf-archive", "favicon", "login", "logout", "register", "signup", "studio", "www"]);
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
@@ -25,6 +26,7 @@ export type RoomAppearance = {
   timeZone: string;
   locationLabel?: string;
   background: { desktop: string; mobile: string; templateId?: string; theme: string };
+  hotspotContours?: ContourDraft;
   objectVariation: { enabledComponents?: RoomComponent[]; markers?: string; [key: string]: string | string[] | undefined };
 };
 

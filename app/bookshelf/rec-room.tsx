@@ -7,6 +7,7 @@ import { libraryVolumes as defaultLibraryVolumes, roomCollections as defaultRoom
 import type { RoomComponent } from "@/lib/room-templates";
 import type { RoomPlaylist } from "@/lib/playlists";
 import { SaloonYouTubePlayer } from "./saloon-youtube-player";
+import type { ContourDraft } from "@/lib/contour-authoring";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
@@ -24,9 +25,10 @@ type RecRoomProps = {
   collections?: typeof defaultRoomCollections;
   playlists?: RoomPlaylist[];
   playerStyle?: "rec-room" | "saloon";
+  hotspotContours?: ContourDraft;
 };
 
-export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
+export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -38,6 +40,7 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   const [activePlaylist, setActivePlaylist] = useState<RoomPlaylist | null>(null);
   const [playerOpen, setPlayerOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [roomControlsVisible, setRoomControlsVisible] = useState(true);
   const closeButton = useRef<HTMLButtonElement>(null);
   const page = useRef<HTMLElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
@@ -85,15 +88,16 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
 
   return <main className="rec-room-page" ref={page}>
     <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
-      <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
+      <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} hotspotContours={hotspotContours} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
       <div className="room-identity"><Link href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div></div>
-      <nav className="room-actions" aria-label="Room controls"><Link href={`/${slug}/admin`}>STUDIO</Link><Link href="/">REC ROOM</Link><button type="button" onClick={() => void toggleFullscreen()} aria-keyshortcuts="F">{isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"} <kbd>F</kbd></button></nav>
+      <nav className="room-actions" aria-label="Room controls"><Link href={`/${slug}/admin`}>STUDIO</Link><button type="button" onClick={() => void toggleFullscreen()} aria-keyshortcuts="F">{isFullscreen ? "EXIT" : "FULLSCREEN"} <kbd>F</kbd></button></nav>
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
       <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
-      <div className="room-legend" aria-label="Interactive objects">
+      <button className="room-legend-toggle" type="button" aria-expanded={roomControlsVisible} aria-controls="room-object-controls" onClick={() => setRoomControlsVisible((visible) => !visible)}>{roomControlsVisible ? "HIDE CONTROLS" : "SHOW CONTROLS"}</button>
+      <div className={`room-legend ${roomControlsVisible ? "" : "is-hidden"}`} id="room-object-controls" aria-label="Interactive objects">
         {(["library", "watch", "play", "read", "jukebox"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
       </div>
-      <p className="room-instruction">SELECT A MARKED OBJECT · ESC TO RETURN</p>
+      <p className={`room-instruction ${roomControlsVisible ? "" : "is-hidden"}`}>SELECT A MARKED OBJECT · ESC TO RETURN</p>
       {active === "jukebox" && <article className="jukebox-browser" role="dialog" aria-modal="true" aria-label="Jukebox playlists">
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
         <header><span>JUKEBOX / @{slug}</span><h1>Choose the room&apos;s soundtrack.</h1><p>Public playlists selected by {ownerName}.</p></header>

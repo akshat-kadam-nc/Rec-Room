@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import { getRoomTemplate, type HotspotRect, type RoomComponent } from "@/lib/room-templates";
+import { shapeToPath, type ContourDraft, type ContourMode, type ContourTarget } from "@/lib/contour-authoring";
 
 export type RoomHotspot = "library" | "watch" | "play" | "read" | "jukebox";
 
@@ -9,6 +10,7 @@ type Props = {
   active: RoomHotspot | null;
   activeChapter: number;
   enabledComponents: RoomComponent[];
+  hotspotContours?: ContourDraft;
   onHotspot: (hotspot: RoomHotspot, chapter?: number) => void;
   onReady: () => void;
   templateId: string;
@@ -33,13 +35,31 @@ function hotspotStyle(desktop: HotspotRect, mobile: HotspotRect): HotspotStyle {
 function libraryChapterRect(rectangle: HotspotRect, index: number, axis: "x" | "y") {
   return axis === "x" ? { ...rectangle, left: rectangle.left + rectangle.width * index / 4, width: rectangle.width / 4 } : { ...rectangle, top: rectangle.top + rectangle.height * index / 4, height: rectangle.height / 4 };
 }
+function activateContour(event: KeyboardEvent<SVGGElement>, activate: () => void) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  activate();
+}
+function pathCenter(path: string) {
+  const values = path.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  const points = Array.from({ length: Math.floor(values.length / 2) }, (_, index) => ({ x: values[index * 2], y: values[index * 2 + 1] }));
+  if (!points.length) return { x: 50, y: 50 };
+  return { x: (Math.min(...points.map((point) => point.x)) + Math.max(...points.map((point) => point.x))) / 2, y: (Math.min(...points.map((point) => point.y)) + Math.max(...points.map((point) => point.y))) / 2 };
+}
 
-export function RecRoomDiorama({ active, activeChapter, enabledComponents, onHotspot, onReady, templateId }: Props) {
+export function RecRoomDiorama({ active, activeChapter, enabledComponents, hotspotContours, onHotspot, onReady, templateId }: Props) {
   const room = useRef<HTMLDivElement>(null);
   const plane = useRef<HTMLDivElement>(null);
   const artwork = useRef<HTMLImageElement>(null);
   const selectedTemplate = getRoomTemplate(templateId);
   const hotspots = hotspotDefinitions.filter((item) => enabledComponents.includes(item.id));
+  const contourFor = (mode: ContourMode, id: RoomHotspot, chapter?: number) => {
+    const target = (id === "library" ? `library-${chapter ?? 0}` : id) as ContourTarget;
+    const custom = hotspotContours?.[mode][target]?.map(shapeToPath).filter(Boolean).join(" ");
+    if (custom) return custom;
+    const defaults = selectedTemplate.contours?.[mode];
+    return id === "library" ? defaults?.library[chapter ?? 0]?.path : defaults?.[id]?.path;
+  };
 
   useEffect(() => {
     const image = artwork.current;
@@ -102,8 +122,37 @@ export function RecRoomDiorama({ active, activeChapter, enabledComponents, onHot
           <img ref={artwork} src={selectedTemplate.desktop} alt={`${selectedTemplate.name} recreation room`} />
         </picture>
         {selectedTemplate.id === "monsoon-study" && <><div className="room-window-loop" aria-hidden="true" /><div className="room-steam" aria-hidden="true"><i /><i /><i /></div></>}
-        <div className="room-hotspots" aria-label="Objects in the recreation room">
-          {hotspots.map(({ chapter, id, key, label, hint }, index) => {
+        {(["desktop", "mobile"] as const).map((mode) => {
+          const aspectHeight = mode === "desktop" ? 56.25 : 177.7778;
+          const yScale = aspectHeight / 100;
+          const traced = hotspots.filter(({ chapter, id }) => Boolean(contourFor(mode, id, chapter)));
+          if (!traced.length) return null;
+          return (
+            <svg className={`room-traced-hotspots room-traced-hotspots-${mode}`} viewBox={`0 0 100 ${aspectHeight}`} preserveAspectRatio="none" aria-label="Objects in the recreation room" key={mode}>
+              {traced.map(({ chapter, id, key, hint }) => {
+                const contour = contourFor(mode, id, chapter)!;
+                const definition = hotspotDefinitions.find((item) => item.key === key)!;
+                const marker = pathCenter(contour);
+                const number = id === "library" ? `B${(chapter ?? 0) + 1}` : id === "watch" ? "05" : id === "play" ? "06" : id === "read" ? "08" : "09";
+                const badgeWidth = Math.max(3.8, definition.label.length * .53 + 1.5);
+                const activate = () => onHotspot(id, chapter);
+                return (
+                  <g className="room-traced-hotspot" role="button" tabIndex={0} aria-label={hint} aria-pressed={active === id && (id !== "library" || activeChapter === chapter)} onClick={activate} onKeyDown={(event) => activateContour(event, activate)} key={key}>
+                    <path className="room-traced-hit" d={contour} transform={`scale(1 ${yScale})`} />
+                    <path className="room-traced-line" d={contour} transform={`scale(1 ${yScale})`} />
+                    <g className="room-traced-marker" transform={`translate(${marker.x} ${marker.y * yScale})`} aria-hidden="true">
+                      <circle r="1.05" /><text className="room-traced-number" textAnchor="middle" dominantBaseline="central" fontSize=".43">{number}</text>
+                      <rect x="1.45" y="-1" width={badgeWidth} height="2" rx=".28" />
+                      <text className="room-traced-label" x="2.05" dominantBaseline="central" fontSize=".58">{definition.label}</text>
+                    </g>
+                  </g>
+                );
+              })}
+            </svg>
+          );
+        })}
+        {(["desktop", "mobile"] as const).map((mode) => <div className={`room-hotspots room-hotspots-mode-${mode}`} aria-label={`Objects in the recreation room (${mode})`} key={mode}>
+          {hotspots.filter(({ chapter, id }) => !contourFor(mode, id, chapter)).map(({ chapter, id, key, label, hint }, index) => {
             const desktopRect = id === "library" ? libraryChapterRect(selectedTemplate.layout.desktop.library, chapter ?? 0, selectedTemplate.libraryAxis) : selectedTemplate.layout.desktop[id];
             const mobileRect = id === "library" ? libraryChapterRect(selectedTemplate.layout.mobile.library, chapter ?? 0, selectedTemplate.libraryAxis) : selectedTemplate.layout.mobile[id];
             return (
@@ -120,7 +169,7 @@ export function RecRoomDiorama({ active, activeChapter, enabledComponents, onHot
               <span className="room-hotspot-label">{label}</span>
             </button>
           )})}
-        </div>
+        </div>)}
       </div>
     </div>
   );
