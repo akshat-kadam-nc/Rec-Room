@@ -8,6 +8,7 @@ import type { RoomComponent } from "@/lib/room-templates";
 import type { RoomPlaylist } from "@/lib/playlists";
 import { SaloonYouTubePlayer } from "./saloon-youtube-player";
 import type { ContourDraft } from "@/lib/contour-authoring";
+import { RoomNotes } from "./room-notes";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
@@ -28,7 +29,7 @@ type RecRoomProps = {
   hotspotContours?: ContourDraft;
 };
 
-export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
+export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox", "notes"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -79,7 +80,7 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   }, [enabledComponents, slug]);
 
   const selectedVolume = volumes[libraryVolume] ?? volumes[0];
-  const collection: RoomCollection | null = active === "library" ? { eyebrow: selectedVolume.eyebrow, title: selectedVolume.title, chapters: selectedVolume.chapters } : active ? collections[active] ?? defaultRoomCollections[active] : null;
+  const collection: RoomCollection | null = active === "library" ? { eyebrow: selectedVolume.eyebrow, title: selectedVolume.title, chapters: selectedVolume.chapters } : active && active !== "notes" ? collections[active] ?? defaultRoomCollections[active] : null;
   const baseChapters = collection?.chapters ?? [];
   const sourcePosts = active === "library" && libraryVolume === 0 ? feedPosts.filter((post) => post.source === "substack") : active === "read" ? feedPosts.filter((post) => post.source === "medium") : [];
   const dynamicChapters = sourcePosts.map((post, index): RoomChapter => ({ id: `post-${index}`, title: post.title, eyebrow: `${post.type.toUpperCase()} / ${post.source.toUpperCase()}`, summary: post.summary, longform: post.content ? [post.content] : undefined, meta: post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("en-IN", { dateStyle: "medium" }) : post.source.toUpperCase(), href: post.link }));
@@ -95,15 +96,16 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
       <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
       <button className="room-legend-toggle" type="button" aria-expanded={roomControlsVisible} aria-controls="room-object-controls" onClick={() => setRoomControlsVisible((visible) => !visible)}>{roomControlsVisible ? "HIDE CONTROLS" : "SHOW CONTROLS"}</button>
       <div className={`room-legend ${roomControlsVisible ? "" : "is-hidden"}`} id="room-object-controls" aria-label="Interactive objects">
-        {(["library", "watch", "play", "read", "jukebox"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>0{index + 1}</span>{collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
+        {(["library", "watch", "play", "read", "jukebox", "notes"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>{String(index + 1).padStart(2, "0")}</span>{hotspot === "notes" ? "Visitor Notes" : collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
       </div>
       <p className={`room-instruction ${roomControlsVisible ? "" : "is-hidden"}`}>SELECT A MARKED OBJECT · ESC TO RETURN</p>
+      {active === "notes" && <RoomNotes onClose={() => setActive(null)} ownerName={ownerName} slug={slug} />}
       {active === "jukebox" && <article className="jukebox-browser" role="dialog" aria-modal="true" aria-label="Jukebox playlists">
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
         <header><span>JUKEBOX / @{slug}</span><h1>Choose the room&apos;s soundtrack.</h1><p>Public playlists selected by {ownerName}.</p></header>
         <ol>{playlists.length ? playlists.map((playlist, index) => <li key={playlist.id}><button type="button" onClick={() => { setActivePlaylist(playlist); setPlayerOpen(playerStyle === "rec-room" || playlist.provider === "spotify"); setActive(null); }}><i>{String(index + 1).padStart(2, "0")}</i><span><strong>{playlist.title}</strong><small>{playlist.provider === "youtube" ? "YOUTUBE MUSIC" : "SPOTIFY"}</small></span><b>PLAY ↗</b></button></li>) : <li className="jukebox-empty">The owner has not published a playlist yet.</li>}</ol>
       </article>}
-      {active && active !== "jukebox" && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
+      {active && active !== "jukebox" && active !== "notes" && collection && currentChapter && <article className={`room-interface room-interface-${active} ${expanded ? "is-reading" : ""}`} role="dialog" aria-modal="true" aria-label={collection.title}>
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
         {active === "watch" ? <div className="watch-browser">
           <header><strong>AK! SCREEN</strong><nav aria-label="Watch categories">{chapters.map((item, index) => <button key={item.id} type="button" className={chapter === index ? "is-current" : ""} onClick={() => setChapter(index)}>{item.title}</button>)}</nav><span>● AK</span></header>

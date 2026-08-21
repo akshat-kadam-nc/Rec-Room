@@ -1,6 +1,6 @@
 export type ContourPoint = { x: number; y: number };
 export type ContourShape = { id: string; points: ContourPoint[]; smoothing: number };
-export type ContourTarget = "library-0" | "library-1" | "library-2" | "library-3" | "watch" | "play" | "read" | "jukebox";
+export type ContourTarget = "library-0" | "library-1" | "library-2" | "library-3" | "watch" | "play" | "read" | "jukebox" | "notes";
 export type ContourMode = "desktop" | "mobile";
 export type ContourDraft = Record<ContourMode, Partial<Record<ContourTarget, ContourShape[]>>>;
 export const createEmptyContourDraft = (): ContourDraft => ({ desktop: {}, mobile: {} });
@@ -35,7 +35,7 @@ export function sanitizeContourDraft(value: unknown): ContourDraft | null {
 export const CONTOUR_TARGETS: Array<{ id: ContourTarget; label: string }> = [
   { id: "library-0", label: "Library · Writing" }, { id: "library-1", label: "Library · Recs" },
   { id: "library-2", label: "Library · Books" }, { id: "library-3", label: "Library · Ideas" },
-  { id: "watch", label: "TV" }, { id: "play", label: "Console" }, { id: "read", label: "Coffee-table book" }, { id: "jukebox", label: "Jukebox" },
+  { id: "watch", label: "TV" }, { id: "play", label: "Console" }, { id: "read", label: "Coffee-table book" }, { id: "jukebox", label: "Jukebox" }, { id: "notes", label: "Visitor notes" },
 ];
 
 const distanceToSegment = (point: ContourPoint, start: ContourPoint, end: ContourPoint) => {

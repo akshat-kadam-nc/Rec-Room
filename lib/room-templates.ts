@@ -1,9 +1,10 @@
-export const ROOM_COMPONENTS = ["library", "watch", "play", "read", "jukebox"] as const;
+export const ROOM_COMPONENTS = ["library", "watch", "play", "read", "jukebox", "notes"] as const;
 export type RoomComponent = (typeof ROOM_COMPONENTS)[number];
 export type HotspotRect = { height: number; left: number; top: number; width: number };
 type TemplateLayout = Record<RoomComponent, HotspotRect>;
+type BaseTemplateLayout = Omit<TemplateLayout, "notes">;
 export type HotspotPath = { path: string };
-export type TemplateContours = { library: HotspotPath[]; watch: HotspotPath; play: HotspotPath; read: HotspotPath; jukebox: HotspotPath };
+export type TemplateContours = { library: HotspotPath[]; watch: HotspotPath; play: HotspotPath; read: HotspotPath; jukebox: HotspotPath; notes?: HotspotPath };
 
 export type RoomTemplate = {
   desktop: string;
@@ -16,7 +17,7 @@ export type RoomTemplate = {
 };
 
 const rect = (left: number, top: number, width: number, height: number): HotspotRect => ({ left, top, width, height });
-const template = (id: string, name: string, desktop: TemplateLayout, mobile: TemplateLayout, libraryAxis: "x" | "y" = "y"): RoomTemplate => ({ id, name, desktop: `/rooms/${id}.webp`, mobile: `/rooms/${id}-mobile.webp`, layout: { desktop, mobile }, libraryAxis });
+const template = (id: string, name: string, desktop: BaseTemplateLayout, mobile: BaseTemplateLayout, libraryAxis: "x" | "y" = "y"): RoomTemplate => ({ id, name, desktop: `/rooms/${id}.webp`, mobile: `/rooms/${id}-mobile.webp`, layout: { desktop: { ...desktop, notes: rect(88,78,9,12) }, mobile: { ...mobile, notes: rect(82,70,15,10) } }, libraryAxis });
 const path = (value: string): HotspotPath => ({ path: value });
 
 const VERDANT_CONTOURS: { desktop: TemplateContours; mobile: TemplateContours } = {
@@ -61,7 +62,7 @@ export const ROOM_TEMPLATES: readonly RoomTemplate[] = [
 
 export const LEGACY_TEMPLATE: RoomTemplate = {
   id: "monsoon-study", name: "Monsoon Study", desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", libraryAxis: "x",
-  layout: { desktop: { library: rect(12.5,34.8,16,12.2), watch: rect(63.7,23.8,31.4,34.6), play: rect(74,63,14,8), read: rect(29.5,66.8,30.5,17.5), jukebox: rect(0,0,0,0) }, mobile: { library: rect(1.6,28,21.5,6.5), watch: rect(65,25,34,23), play: rect(77,48,20,7), read: rect(24,55,49,17), jukebox: rect(0,0,0,0) } },
+  layout: { desktop: { library: rect(12.5,34.8,16,12.2), watch: rect(63.7,23.8,31.4,34.6), play: rect(74,63,14,8), read: rect(29.5,66.8,30.5,17.5), jukebox: rect(0,0,0,0), notes: rect(88,78,9,12) }, mobile: { library: rect(1.6,28,21.5,6.5), watch: rect(65,25,34,23), play: rect(77,48,20,7), read: rect(24,55,49,17), jukebox: rect(0,0,0,0), notes: rect(82,70,15,10) } },
 };
 
 export const ALL_ROOM_TEMPLATES = [LEGACY_TEMPLATE, ...ROOM_TEMPLATES] as const;

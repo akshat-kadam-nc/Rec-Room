@@ -4,7 +4,7 @@ import { useEffect, useRef, type CSSProperties, type KeyboardEvent } from "react
 import { getRoomTemplate, type HotspotRect, type RoomComponent } from "@/lib/room-templates";
 import { shapeToPath, type ContourDraft, type ContourMode, type ContourTarget } from "@/lib/contour-authoring";
 
-export type RoomHotspot = "library" | "watch" | "play" | "read" | "jukebox";
+export type RoomHotspot = "library" | "watch" | "play" | "read" | "jukebox" | "notes";
 
 type Props = {
   active: RoomHotspot | null;
@@ -25,6 +25,7 @@ const hotspotDefinitions: Array<{ chapter?: number; id: RoomHotspot; key: string
   { id: "play", key: "play", label: "Play", hint: "Open games and wishlists" },
   { id: "read", key: "read", label: "Read", hint: "Open the commonplace book" },
   { id: "jukebox", key: "jukebox", label: "Listen", hint: "Open the jukebox" },
+  { id: "notes", key: "notes", label: "Notes", hint: "Open the visitor guestbook" },
 ];
 
 type HotspotStyle = CSSProperties & Record<`--${"desktop" | "mobile"}-${"left" | "top" | "width" | "height"}`, string>;
@@ -58,7 +59,13 @@ export function RecRoomDiorama({ active, activeChapter, enabledComponents, hotsp
     const custom = hotspotContours?.[mode][target]?.map(shapeToPath).filter(Boolean).join(" ");
     if (custom) return custom;
     const defaults = selectedTemplate.contours?.[mode];
-    return id === "library" ? defaults?.library[chapter ?? 0]?.path : defaults?.[id]?.path;
+    if (id === "library") return defaults?.library[chapter ?? 0]?.path;
+    if (defaults?.[id]?.path) return defaults[id]!.path;
+    if (id === "notes") {
+      const bounds = selectedTemplate.layout[mode].notes;
+      return `M${bounds.left} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top + bounds.height} L${bounds.left} ${bounds.top + bounds.height} Z`;
+    }
+    return undefined;
   };
 
   useEffect(() => {
@@ -133,7 +140,7 @@ export function RecRoomDiorama({ active, activeChapter, enabledComponents, hotsp
                 const contour = contourFor(mode, id, chapter)!;
                 const definition = hotspotDefinitions.find((item) => item.key === key)!;
                 const marker = pathCenter(contour);
-                const number = id === "library" ? `B${(chapter ?? 0) + 1}` : id === "watch" ? "05" : id === "play" ? "06" : id === "read" ? "08" : "09";
+                const number = id === "library" ? `B${(chapter ?? 0) + 1}` : id === "watch" ? "05" : id === "play" ? "06" : id === "read" ? "08" : id === "jukebox" ? "09" : "10";
                 const badgeWidth = Math.max(3.8, definition.label.length * .53 + 1.5);
                 const activate = () => onHotspot(id, chapter);
                 return (
