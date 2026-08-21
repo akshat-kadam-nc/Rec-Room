@@ -51,6 +51,10 @@ export async function ensureTenantIndexes() {
     db.collection("roomConfigurations").createIndex({ tenantId: 1 }, { unique: true }),
     db.collection("curatedContent").createIndex({ tenantId: 1 }, { unique: true }),
     db.collection("roomPlaylists").createIndex({ tenantId: 1 }, { unique: true }),
+    db.collection("roomNotes").createIndex({ tenantId: 1, createdAt: -1 }),
+    db.collection("roomNotes").createIndex({ tenantId: 1, visibility: 1, moderationStatus: 1, createdAt: -1 }),
+    db.collection("noteRateLimits").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    db.collection("noteRateLimits").createIndex({ key: 1 }, { unique: true }),
   ]);
 }
 
@@ -67,7 +71,7 @@ export async function seedAkshatTenant() {
   await Promise.all([
     db.collection<RoomConfiguration>("roomConfigurations").updateOne(
       { tenantId: result._id },
-      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", city: "Mumbai", timeZone: "Asia/Kolkata", locationLabel: "Mumbai", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox"] }, publishedAt: now, updatedAt: now } },
+      { $setOnInsert: { tenantId: result._id, ownerName: "Akshat Kadam", title: "The Rec Room", city: "Mumbai", timeZone: "Asia/Kolkata", locationLabel: "Mumbai", background: { desktop: "/rec-room-diorama-desktop.webp", mobile: "/rec-room-diorama-mobile.webp", templateId: "monsoon-study", theme: "monsoon-walnut" }, objectVariation: { library: "walnut", watch: "crt", play: "console", read: "coffee-table", markers: "ember", enabledComponents: ["library", "watch", "play", "read", "jukebox", "notes"] }, publishedAt: now, updatedAt: now } },
       { upsert: true },
     ),
     db.collection("curatedContent").updateOne(
