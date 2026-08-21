@@ -12,12 +12,16 @@ type YouTubePlayer = {
   getDuration(): number;
   getPlayerState(): number;
   getVideoData(): VideoData;
+  isMuted(): boolean;
   loadPlaylist(options: { list: string; listType: "playlist"; index: number; startSeconds: number }): void;
   nextVideo(): void;
   pauseVideo(): void;
   playVideo(): void;
   previousVideo(): void;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
+  setVolume(volume: number): void;
+  mute(): void;
+  unMute(): void;
 };
 
 declare global {
@@ -58,6 +62,8 @@ export function SaloonYouTubePlayer({ playlist, onClose }: { playlist: RoomPlayl
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(35);
+  const [muted, setMuted] = useState(false);
   const [track, setTrack] = useState<VideoData>({ title: playlist.title, author: "YouTube Music" });
 
   useEffect(() => {
@@ -77,7 +83,7 @@ export function SaloonYouTubePlayer({ playlist, onClose }: { playlist: RoomPlayl
         height: "200", width: "200",
         playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, origin: window.location.origin },
         events: {
-          onReady: (event: PlayerEvent) => { event.target.loadPlaylist({ list: playlistId(playlist.url), listType: "playlist", index: 0, startSeconds: 0 }); timer = window.setInterval(sync, 500); },
+          onReady: (event: PlayerEvent) => { event.target.setVolume(35); event.target.loadPlaylist({ list: playlistId(playlist.url), listType: "playlist", index: 0, startSeconds: 0 }); timer = window.setInterval(sync, 500); },
           onStateChange: () => sync(),
         },
       });
@@ -88,12 +94,15 @@ export function SaloonYouTubePlayer({ playlist, onClose }: { playlist: RoomPlayl
   const seek = (value: number) => { setCurrentTime(value); player.current?.seekTo(value, true); };
   const move = (direction: "next" | "previous") => { if (direction === "next") player.current?.nextVideo(); else player.current?.previousVideo(); };
   const toggle = () => { if (playing) player.current?.pauseVideo(); else player.current?.playVideo(); };
+  const changeVolume = (value: number) => { setVolume(value); player.current?.setVolume(value); if (value > 0 && muted) { player.current?.unMute(); setMuted(false); } };
+  const toggleMute = () => { if (muted) player.current?.unMute(); else player.current?.mute(); setMuted((value) => !value); };
   const thumbnail = track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : "";
 
   return <aside className="saloon-real-player" aria-label="YouTube Music player">
     <div className="saloon-youtube-mount" ref={mount} aria-hidden="true" />
     <div className={`saloon-record ${playing ? "is-spinning" : ""}`}>{thumbnail ? <img src={thumbnail} alt="" /> : <span>YT</span>}<i /></div>
     <div className="saloon-real-track"><strong>{track.title || playlist.title}</strong><small>{track.author || "YouTube Music"}</small><input type="range" min="0" max={Math.max(duration, 1)} step="0.1" value={Math.min(currentTime, Math.max(duration, 1))} aria-label="Seek through track" onInput={(event) => seek(Number(event.currentTarget.value))} onChange={(event) => setCurrentTime(Number(event.currentTarget.value))} /><em>{formatTime(currentTime)} / {formatTime(duration)}</em></div>
+    <div className="saloon-volume"><button type="button" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>{muted || volume === 0 ? "MUTE" : "VOL"}</button><input type="range" min="0" max="100" value={muted ? 0 : volume} aria-label="Player volume" onChange={(event) => changeVolume(Number(event.currentTarget.value))} /></div>
     <div className="saloon-real-controls"><button type="button" onClick={() => move("previous")} aria-label="Previous track">Ⅰ◀</button><button type="button" className="saloon-real-play" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button><button type="button" onClick={() => move("next")} aria-label="Next track">▶Ⅰ</button></div>
     <Link href={playlist.url} target="_blank" rel="noreferrer" aria-label="Open source playlist">↗</Link><button type="button" className="saloon-real-close" onClick={onClose} aria-label="Close player">×</button>
   </aside>;

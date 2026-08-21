@@ -13,6 +13,7 @@ import { RoomNotes } from "./room-notes";
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
 type RecRoomProps = {
+  autoplayPlaylistId?: string | null;
   enabledComponents?: RoomComponent[];
   city?: string;
   timeZone?: string;
@@ -29,7 +30,7 @@ type RecRoomProps = {
   hotspotContours?: ContourDraft;
 };
 
-export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox", "notes"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
+export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox", "notes"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -38,7 +39,7 @@ export function RecRoom({ city = "Mumbai", enabledComponents = ["library", "watc
   const [feedStates, setFeedStates] = useState<Record<"medium" | "substack", "loading" | "ready" | "missing" | "unavailable">>({ medium: "loading", substack: "loading" });
   const [loaded, setLoaded] = useState(false);
   const [clock, setClock] = useState("");
-  const [activePlaylist, setActivePlaylist] = useState<RoomPlaylist | null>(null);
+  const [activePlaylist, setActivePlaylist] = useState<RoomPlaylist | null>(() => playlists.find((playlist) => playlist.id === autoplayPlaylistId) ?? null);
   const [playerOpen, setPlayerOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [roomControlsVisible, setRoomControlsVisible] = useState(true);
