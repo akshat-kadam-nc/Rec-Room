@@ -7,6 +7,22 @@ import { getRoomTemplate } from "@/lib/room-templates";
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const hasContours = (draft?: ContourDraft) => Boolean(draft && (["desktop", "mobile"] as const).some((mode) => Object.values(draft[mode]).some((shapes) => shapes?.length)));
 
+function fallbackPath(template: ReturnType<typeof getRoomTemplate>, mode: ContourMode, target: ContourTarget) {
+  const contours = template.contours?.[mode];
+  if (target.startsWith("library-")) {
+    const index = Number(target.slice(-1));
+    if (contours?.library[index]?.path) return contours.library[index].path;
+    const source = template.layout[mode].library;
+    const bounds = template.libraryAxis === "x" ? { ...source, left: source.left + source.width * index / 4, width: source.width / 4 } : { ...source, top: source.top + source.height * index / 4, height: source.height / 4 };
+    return `M${bounds.left} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top + bounds.height} L${bounds.left} ${bounds.top + bounds.height} Z`;
+  }
+  const component = target as "watch" | "play" | "read" | "jukebox" | "notes";
+  const traced = contours?.[component]?.path;
+  if (traced) return traced;
+  const bounds = template.layout[mode][component];
+  return `M${bounds.left} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top} L${bounds.left + bounds.width} ${bounds.top + bounds.height} L${bounds.left} ${bounds.top + bounds.height} Z`;
+}
+
 export function ContourEditor({ initialValue, onChange, templateId }: { initialValue?: ContourDraft; onChange?: (value: ContourDraft) => void; templateId: string }) {
   return <ContourEditorWorkspace initialValue={initialValue} key={templateId} onChange={onChange} templateId={templateId} />;
 }
@@ -33,17 +49,20 @@ function ContourEditorWorkspace({ initialValue, onChange, templateId }: { initia
   const [copied, setCopied] = useState(false);
   const shapes = draft[mode][target] ?? [];
   const selected = shapes.find((shape) => shape.id === activeShape) ?? shapes.at(-1);
+  const references = CONTOUR_TARGETS.map(({ id }) => ({ id, paths: draft[mode][id]?.length ? draft[mode][id]!.map(shapeToPath) : [fallbackPath(template, mode, id)] }));
   const exportValue = useMemo(() => JSON.stringify(exportContourDraft(draft), null, 2), [draft]);
 
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(draft)); onChange?.(draft); }, [draft, onChange, storageKey]);
   useEffect(() => {
-    if (hasContours(draft)) return;
     const slug = location.pathname.split("/")[1];
     fetch(`/api/tenants/${slug}/content`).then((response) => response.ok ? response.json() : null).then((payload) => {
       const appearance = payload?.configuration?.draft ?? payload?.configuration;
-      if (appearance?.background?.templateId === templateId && hasContours(appearance.hotspotContours)) setDraft(appearance.hotspotContours as ContourDraft);
+      if (appearance?.background?.templateId === templateId && hasContours(appearance.hotspotContours)) setDraft((current) => {
+        const saved = appearance.hotspotContours as ContourDraft;
+        return { desktop: { ...saved.desktop, ...current.desktop }, mobile: { ...saved.mobile, ...current.mobile } };
+      });
     }).catch(() => undefined);
-  }, [draft, templateId]);
+  }, [templateId]);
 
   const pointFromEvent = (event: PointerEvent<SVGSVGElement | SVGCircleElement>): ContourPoint => {
     const bounds = svg.current!.getBoundingClientRect();
@@ -93,6 +112,7 @@ function ContourEditorWorkspace({ initialValue, onChange, templateId }: { initia
       <div className={`contour-canvas contour-canvas-${mode}`}>
         <img src={mode === "desktop" ? template.desktop : template.mobile} alt={`${template.name} ${mode} contour canvas`} draggable={false} />
         <svg ref={svg} viewBox="0 0 100 100" preserveAspectRatio="none" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishPencil} onPointerCancel={finishPencil}>
+          <g className="contour-reference-map" aria-hidden="true">{references.map((reference) => <g className={reference.id === target ? "is-target" : ""} key={reference.id}>{reference.paths.map((path, index) => <path d={path} key={index} />)}</g>)}</g>
           {shapes.map((shape) => <g key={shape.id} className={shape.id === selected?.id ? "is-selected" : ""} onPointerDown={(event) => { if (tool === "anchors") { event.stopPropagation(); setActiveShape(shape.id); } }}><path d={shapeToPath(shape)} />{tool === "anchors" && shape.id === selected?.id && shape.points.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r=".7" onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); setHistory((items) => [...items.slice(-29), clone(draft)]); dragging.current = { point: index, shape: shape.id }; }} onPointerUp={() => { dragging.current = null; }} />)}</g>)}
         </svg>
       </div>
