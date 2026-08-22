@@ -5,6 +5,7 @@ import { getDatabase } from "./mongodb";
 import { libraryVolumes, roomCollections } from "@/app/bookshelf/room-content";
 import type { RoomComponent } from "./room-templates";
 import type { ContourDraft } from "./contour-authoring";
+import type { TenantProfile } from "./profiles";
 
 export const RESERVED_SLUGS = new Set(["admin", "api", "archive", "bookshelf-archive", "favicon", "login", "logout", "register", "signup", "studio", "www"]);
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/;
@@ -51,6 +52,8 @@ export async function ensureTenantIndexes() {
     db.collection("roomConfigurations").createIndex({ tenantId: 1 }, { unique: true }),
     db.collection("curatedContent").createIndex({ tenantId: 1 }, { unique: true }),
     db.collection("roomPlaylists").createIndex({ tenantId: 1 }, { unique: true }),
+    db.collection("tenantProfiles").createIndex({ tenantId: 1 }, { unique: true }),
+    db.collection("tenantProfiles").createIndex({ discoverable: 1, isPublic: 1, updatedAt: -1 }),
     db.collection("roomNotes").createIndex({ tenantId: 1, createdAt: -1 }),
     db.collection("roomNotes").createIndex({ tenantId: 1, visibility: 1, moderationStatus: 1, createdAt: -1 }),
     db.collection("noteRateLimits").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
@@ -79,6 +82,16 @@ export async function seedAkshatTenant() {
       { $setOnInsert: { tenantId: result._id, libraryVolumes, roomCollections, updatedAt: now } },
       { upsert: true },
     ),
+    db.collection<TenantProfile>("tenantProfiles").updateOne(
+      { tenantId: result._id },
+      { $setOnInsert: { tenantId: result._id, displayName: "Akshat Kadam", headline: "Making a home for stories, systems, and beautiful things.", bio: "This room is a living index of what I read, watch, play, build, and return to.", interests: ["Cinema", "Books", "Games", "Product systems"], links: [], isPublic: true, discoverable: true, createdAt: now, updatedAt: now } },
+      { upsert: true },
+    ),
+    db.collection<TenantProfile>("tenantProfiles").updateOne(
+      { tenantId: result._id },
+      { $setOnInsert: { tenantId: result._id, displayName: "Akshat Kadam", headline: "Making a home for stories, systems, and beautiful things.", bio: "This room is a living index of what I read, watch, play, build, and return to.", interests: ["Cinema", "Books", "Games", "Product systems"], links: [], isPublic: true, discoverable: true, createdAt: now, updatedAt: now } },
+      { upsert: true },
+    ),
   ]);
   return result;
 }
@@ -94,12 +107,13 @@ export async function getTenantRoom(slug: string) {
   const tenant = await findPublicTenant(slug);
   if (!tenant) return null;
   const db = await getDatabase();
-  const [configuration, content, playlistDocument] = await Promise.all([
+  const [configuration, content, playlistDocument, profile] = await Promise.all([
     db.collection<RoomConfiguration>("roomConfigurations").findOne({ tenantId: tenant._id }),
     db.collection("curatedContent").findOne({ tenantId: tenant._id }),
     db.collection("roomPlaylists").findOne({ tenantId: tenant._id }),
+    db.collection<TenantProfile>("tenantProfiles").findOne({ tenantId: tenant._id, isPublic: true }),
   ]);
-  return { tenant, configuration, content, playlists: playlistDocument?.playlists ?? [], playerStyle: playlistDocument?.playerStyle ?? "rec-room", autoplayPlaylistId: playlistDocument?.autoplayPlaylistId ?? null };
+  return { tenant, configuration, content, profile, playlists: playlistDocument?.playlists ?? [], playerStyle: playlistDocument?.playerStyle ?? "rec-room", autoplayPlaylistId: playlistDocument?.autoplayPlaylistId ?? null };
 }
 
 export async function getSession() {

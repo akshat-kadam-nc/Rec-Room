@@ -10,6 +10,7 @@ import { SaloonYouTubePlayer } from "./saloon-youtube-player";
 import type { ContourDraft } from "@/lib/contour-authoring";
 import { RoomNotes } from "./room-notes";
 import { RoomPresence } from "./room-presence";
+import type { TenantProfile } from "@/lib/profiles";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
@@ -28,10 +29,11 @@ type RecRoomProps = {
   collections?: typeof defaultRoomCollections;
   playlists?: RoomPlaylist[];
   playerStyle?: "rec-room" | "saloon";
+  profile?: Partial<TenantProfile> | null;
   hotspotContours?: ContourDraft;
 };
 
-export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox", "notes"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room" }: RecRoomProps) {
+export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledComponents = ["library", "watch", "play", "read", "jukebox", "notes"], hotspotContours, markerStyle = "ember", ownerName = "Akshat Kadam", roomTitle = "The Rec Room", slug = "akshat", theme = "monsoon-walnut", templateId = "monsoon-study", timeZone = "Asia/Kolkata", volumes = defaultLibraryVolumes, collections = defaultRoomCollections, playlists = [], playerStyle = "rec-room", profile }: RecRoomProps) {
   const [active, setActive] = useState<RoomHotspot | null>(null);
   const [chapter, setChapter] = useState(0);
   const [libraryVolume, setLibraryVolume] = useState(0);
@@ -44,6 +46,7 @@ export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledCom
   const [playerOpen, setPlayerOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [roomControlsVisible, setRoomControlsVisible] = useState(true);
+  const [profileOpen, setProfileOpen] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const page = useRef<HTMLElement>(null);
   const openHotspot = useCallback((hotspot: RoomHotspot, volume = 0) => { setLibraryVolume(hotspot === "library" ? volume : 0); setChapter(0); setExpanded(false); setActive(hotspot); }, []);
@@ -92,7 +95,7 @@ export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledCom
   return <main className="rec-room-page" ref={page}>
     <section className={`rec-room-stage room-theme-${theme} room-markers-${markerStyle} ${loaded ? "is-loaded" : ""}`} aria-label="Interactive recreation room">
       <RecRoomDiorama active={active} activeChapter={libraryVolume} enabledComponents={enabledComponents} hotspotContours={hotspotContours} templateId={templateId} onHotspot={openHotspot} onReady={markLoaded} />
-      <div className="room-identity"><Link href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div></div>
+      <div className="room-identity"><Link href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><button className="room-profile-trigger" type="button" disabled={!profile} aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}><span>{(profile?.displayName || ownerName).toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></button></div>
       <nav className="room-actions" aria-label="Room controls"><Link href={`/${slug}/admin`}>STUDIO</Link><button type="button" onClick={() => void toggleFullscreen()} aria-keyshortcuts="F">{isFullscreen ? "EXIT" : "FULLSCREEN"} <kbd>F</kbd></button></nav>
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
       <div className="room-ambient-status"><div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div><RoomPresence slug={slug} /></div>
@@ -101,6 +104,7 @@ export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledCom
         {(["library", "watch", "play", "read", "jukebox", "notes"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>{String(index + 1).padStart(2, "0")}</span>{hotspot === "notes" ? "Visitor Notes" : collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
       </div>
       <p className={`room-instruction ${roomControlsVisible ? "" : "is-hidden"}`}>SELECT A MARKED OBJECT · ESC TO RETURN</p>
+      {profile && profileOpen && <aside className="room-profile-card" aria-label={`${profile.displayName || ownerName}'s profile`}><button type="button" onClick={() => setProfileOpen(false)} aria-label="Close profile">×</button><div className="room-profile-avatar">{profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : (profile.displayName || ownerName).split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</div><small>@{slug}</small><h1>{profile.displayName || ownerName}</h1><strong>{profile.headline}</strong><p>{profile.bio}</p><div className="room-profile-interests">{profile.interests?.map((interest) => <span key={interest}>{interest}</span>)}</div><nav>{profile.links?.map((link) => <Link key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</Link>)}<Link href="/discover">DISCOVER ROOMS</Link></nav></aside>}
       {active === "notes" && <RoomNotes onClose={() => setActive(null)} ownerName={ownerName} slug={slug} />}
       {active === "jukebox" && <article className="jukebox-browser" role="dialog" aria-modal="true" aria-label="Jukebox playlists">
         <button ref={closeButton} type="button" onClick={() => setActive(null)} aria-label="Return to room">×</button>
