@@ -9,6 +9,7 @@ import type { RoomPlaylist } from "@/lib/playlists";
 import { SaloonYouTubePlayer } from "./saloon-youtube-player";
 import type { ContourDraft } from "@/lib/contour-authoring";
 import { RoomNotes } from "./room-notes";
+import { RoomPresence } from "./room-presence";
 
 type FeedPost = { content?: string; link: string; publishedAt?: string; source: "medium" | "substack"; summary: string; title: string; type: string };
 
@@ -94,7 +95,7 @@ export function RecRoom({ autoplayPlaylistId = null, city = "Mumbai", enabledCom
       <div className="room-identity"><Link href="/" aria-label="Rec Room home"><img src="/favicon.svg" alt="" /></Link><div><span>{ownerName.toUpperCase()} / @{slug}</span><strong>{roomTitle.toUpperCase()}</strong></div></div>
       <nav className="room-actions" aria-label="Room controls"><Link href={`/${slug}/admin`}>STUDIO</Link><button type="button" onClick={() => void toggleFullscreen()} aria-keyshortcuts="F">{isFullscreen ? "EXIT" : "FULLSCREEN"} <kbd>F</kbd></button></nav>
       <div className="room-loading" role="status" aria-live="polite"><i /><span>PREPARING THE ROOM</span><strong>雨の夜 / MUMBAI</strong></div>
-      <div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div>
+      <div className="room-ambient-status"><div className="room-weather"><span>{city.toUpperCase()}</span><strong suppressHydrationWarning>{clock || "--:--:--"}</strong></div><RoomPresence slug={slug} /></div>
       <button className="room-legend-toggle" type="button" aria-expanded={roomControlsVisible} aria-controls="room-object-controls" onClick={() => setRoomControlsVisible((visible) => !visible)}>{roomControlsVisible ? "HIDE CONTROLS" : "SHOW CONTROLS"}</button>
       <div className={`room-legend ${roomControlsVisible ? "" : "is-hidden"}`} id="room-object-controls" aria-label="Interactive objects">
         {(["library", "watch", "play", "read", "jukebox", "notes"] as const).filter((hotspot) => enabledComponents.includes(hotspot)).map((hotspot, index) => <button key={hotspot} type="button" onClick={() => openHotspot(hotspot)}><span>{String(index + 1).padStart(2, "0")}</span>{hotspot === "notes" ? "Visitor Notes" : collections[hotspot]?.title ?? defaultRoomCollections[hotspot].title}</button>)}
