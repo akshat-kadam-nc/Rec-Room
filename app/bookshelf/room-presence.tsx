@@ -54,5 +54,5 @@ export function RoomPresence({ slug }: { slug: string }) {
   }, [slug]);
 
   if (visitorCount === null || visitorCount < 1) return null;
-  return <div className="room-presence" role="status" aria-live="polite"><i aria-hidden="true" /><span>{visitorCount === 1 ? "JUST YOU HERE" : `${visitorCount} VISITORS HERE`}</span></div>;
+  return <div className="room-presence" role="status" aria-live="polite"><i aria-hidden="true" /><span>{visitorCount} ONLINE</span></div>;
 }
